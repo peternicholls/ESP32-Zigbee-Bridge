@@ -10,8 +10,12 @@
 #include "quirks.h"
 #include "os.h"
 #include <string.h>
+#include <math.h>
 
 #define QUIRKS_MODULE "QUIRKS"
+
+/* Epsilon for floating point comparisons */
+#define QUIRKS_FLOAT_EPSILON 1e-6f
 
 /* Built-in quirks table */
 static const quirk_entry_t quirks_table[] = {
@@ -239,7 +243,7 @@ os_err_t quirks_apply_command(const char *manufacturer, const char *model,
                 
             case QUIRK_ACTION_SCALE_NUMERIC:
                 /* Reverse scale for commands */
-                if (action->params.scale.multiplier != 0.0f) {
+                if (fabsf(action->params.scale.multiplier) > QUIRKS_FLOAT_EPSILON) {
                     value->f = (value->f - action->params.scale.offset) / action->params.scale.multiplier;
                 }
                 break;

@@ -32,6 +32,10 @@
 /* Maximum payload size for discovery config JSON */
 #define HA_MAX_PAYLOAD_SIZE 1024
 
+/* Timing constants */
+#define HA_DISC_STARTUP_DELAY_MS   2000
+#define HA_DISC_POLLING_INTERVAL_MS 5000
+
 /* Component names */
 static const char *component_names[] = {
     "light",
@@ -308,7 +312,7 @@ void ha_disc_task(void *arg) {
     LOG_I(HA_MODULE, "HA Discovery task started");
     
     /* Wait for initial setup */
-    os_sleep(2000);
+    os_sleep(HA_DISC_STARTUP_DELAY_MS);
     
     while (1) {
         /* Check for pending publishes when MQTT is connected */
@@ -316,7 +320,7 @@ void ha_disc_task(void *arg) {
             ha_disc_flush_pending();
         }
         
-        os_sleep(5000);
+        os_sleep(HA_DISC_POLLING_INTERVAL_MS);
     }
 }
 
@@ -493,8 +497,19 @@ static void handle_reg_node_ready(const os_event_t *event, void *ctx) {
     (void)ctx;
     (void)event;
     
-    /* When a node's capability state changes, check if we need to publish discovery */
-    /* This is a simplified handler - in production, we'd track state more carefully */
+    /*
+     * This handler is subscribed to OS_EVENT_CAP_STATE_CHANGED.
+     * In the current implementation, ha_disc_publish_node() is called explicitly
+     * when nodes transition to READY state (typically from the interview service).
+     * 
+     * In a full implementation, this handler would:
+     * 1. Track which nodes have had discovery published
+     * 2. Detect capability additions/changes
+     * 3. Republish discovery when capabilities change
+     * 
+     * For now, discovery is triggered explicitly via ha_disc_publish_node()
+     * and ha_disc_publish_all() calls from other services.
+     */
 }
 
 static void handle_mqtt_connected(const os_event_t *event, void *ctx) {
