@@ -15,6 +15,7 @@
 #include "os_config.h"
 #include "os_event.h"
 #include "os_log.h"
+#include "os_persist.h"
 
 /* Test macros */
 #define TEST_START(name)  printf("  Testing %s... ", name)
@@ -232,6 +233,100 @@ static void test_types(void) {
     TEST_PASS();
 }
 
+/* Persistence tests */
+
+static void test_persist_init(void) {
+    TEST_START("persist_init");
+    
+    /* Clean up any previous state */
+    system("rm -rf /tmp/bridge_persist");
+    
+    os_err_t err = os_persist_init();
+    ASSERT_EQ(err, OS_OK);
+    
+    tests_passed++;
+    TEST_PASS();
+}
+
+static void test_persist_put_get(void) {
+    TEST_START("persist_put_get");
+    
+    const char *key = "test_key";
+    uint32_t value = 0x12345678;
+    
+    os_err_t err = os_persist_put(key, &value, sizeof(value));
+    ASSERT_EQ(err, OS_OK);
+    
+    /* Should be able to read back from buffer */
+    uint32_t read_value = 0;
+    size_t read_len;
+    err = os_persist_get(key, &read_value, sizeof(read_value), &read_len);
+    ASSERT_EQ(err, OS_OK);
+    ASSERT_EQ(read_value, value);
+    ASSERT_EQ(read_len, sizeof(value));
+    
+    tests_passed++;
+    TEST_PASS();
+}
+
+static void test_persist_flush(void) {
+    TEST_START("persist_flush");
+    
+    os_err_t err = os_persist_flush();
+    ASSERT_EQ(err, OS_OK);
+    
+    /* After flush, should still be able to read */
+    const char *key = "test_key";
+    uint32_t read_value = 0;
+    size_t read_len;
+    err = os_persist_get(key, &read_value, sizeof(read_value), &read_len);
+    ASSERT_EQ(err, OS_OK);
+    ASSERT_EQ(read_value, (uint32_t)0x12345678);
+    
+    tests_passed++;
+    TEST_PASS();
+}
+
+static void test_persist_exists(void) {
+    TEST_START("persist_exists");
+    
+    ASSERT_TRUE(os_persist_exists("test_key"));
+    ASSERT_FALSE(os_persist_exists("nonexistent"));
+    
+    tests_passed++;
+    TEST_PASS();
+}
+
+static void test_persist_del(void) {
+    TEST_START("persist_del");
+    
+    const char *key = "del_test";
+    uint32_t value = 42;
+    
+    os_err_t err = os_persist_put(key, &value, sizeof(value));
+    ASSERT_EQ(err, OS_OK);
+    ASSERT_TRUE(os_persist_exists(key));
+    
+    err = os_persist_del(key);
+    ASSERT_EQ(err, OS_OK);
+    ASSERT_FALSE(os_persist_exists(key));
+    
+    tests_passed++;
+    TEST_PASS();
+}
+
+static void test_persist_schema_version(void) {
+    TEST_START("persist_schema_version");
+    
+    uint32_t version = 42;
+    os_err_t err = os_persist_set_schema_version(version);
+    ASSERT_EQ(err, OS_OK);
+    ASSERT_EQ(os_persist_schema_version(), version);
+    
+    tests_passed++;
+    TEST_PASS();
+}
+
 /* Main test runner */
 
 int main(int argc, char *argv[]) {
@@ -255,6 +350,14 @@ int main(int argc, char *argv[]) {
     test_log_levels();
     test_log_set_level();
     test_log_write();
+    
+    printf("\nPersistence tests:\n");
+    test_persist_init();
+    test_persist_put_get();
+    test_persist_flush();
+    test_persist_exists();
+    test_persist_del();
+    test_persist_schema_version();
     
     printf("\n=== Results ===\n");
     printf("Passed: %d\n", tests_passed);

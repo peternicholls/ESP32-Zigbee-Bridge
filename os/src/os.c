@@ -50,6 +50,14 @@ os_err_t os_init(void) {
     }
     LOG_D(OS_MODULE, "Shell initialized");
     
+    /* Initialize persistence */
+    err = os_persist_init();
+    if (err != OS_OK && err != OS_ERR_ALREADY_EXISTS) {
+        LOG_E(OS_MODULE, "Persistence init failed: %d", err);
+        return err;
+    }
+    LOG_D(OS_MODULE, "Persistence initialized");
+    
     LOG_I(OS_MODULE, "OS initialization complete");
     
     /* Emit boot event */

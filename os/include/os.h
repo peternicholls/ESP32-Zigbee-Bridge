@@ -15,6 +15,7 @@
 #include "os_log.h"
 #include "os_console.h"
 #include "os_shell.h"
+#include "os_persist.h"
 
 #ifdef __cplusplus
 extern "C" {

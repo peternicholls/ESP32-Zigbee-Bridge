@@ -17,7 +17,8 @@ OS_SRCS = os/src/os.c \
           os/src/os_event.c \
           os/src/os_log.c \
           os/src/os_console.c \
-          os/src/os_shell.c
+          os/src/os_shell.c \
+          os/src/os_persist.c
 
 APP_SRCS = apps/src/app_blink.c
 
@@ -47,7 +48,7 @@ $(MAIN_TARGET): $(OS_OBJS) $(APP_OBJS) $(MAIN_OBJS)
 	$(CC) $(CFLAGS) $^ -o $@ $(LIBS)
 	@echo "Built: $@"
 
-$(TEST_TARGET): $(TEST_OBJS) os/src/os_event.o os/src/os_log.o os/src/os_fibre.o
+$(TEST_TARGET): $(TEST_OBJS) os/src/os_event.o os/src/os_log.o os/src/os_fibre.o os/src/os_persist.o
 	@mkdir -p build
 	$(CC) $(CFLAGS) $^ -o $@
 	@echo "Built: $@"
@@ -77,6 +78,7 @@ os/src/os_event.o: os/include/os_event.h os/include/os_types.h os/include/os_con
 os/src/os_log.o: os/include/os_log.h os/include/os_types.h os/include/os_config.h
 os/src/os_console.o: os/include/os_console.h os/include/os_types.h os/include/os_config.h
 os/src/os_shell.o: os/include/os_shell.h os/include/os_types.h os/include/os_config.h
+os/src/os_persist.o: os/include/os_persist.h os/include/os_types.h os/include/os_config.h
 apps/src/app_blink.o: apps/src/app_blink.h os/include/os.h
 main/src/main.o: os/include/os.h apps/src/app_blink.h
 tests/unit/test_os.o: os/include/os_types.h os/include/os_event.h os/include/os_log.h
