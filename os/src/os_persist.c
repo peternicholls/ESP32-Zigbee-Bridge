@@ -170,7 +170,7 @@ os_err_t os_persist_put(const char *key, const void *data, size_t len) {
     write_buffer_entry_t *slot = NULL;
     
     /* First, look for existing entry with same key */
-    for (int i = 0; i < WRITE_BUFFER_SIZE; i++) {
+    for (uint32_t i = 0; i < WRITE_BUFFER_SIZE; i++) {
         if (persist.write_buffer[i].valid && 
             strcmp(persist.write_buffer[i].key, key) == 0) {
             slot = &persist.write_buffer[i];
@@ -180,7 +180,7 @@ os_err_t os_persist_put(const char *key, const void *data, size_t len) {
     
     /* If not found, find empty slot */
     if (!slot) {
-        for (int i = 0; i < WRITE_BUFFER_SIZE; i++) {
+        for (uint32_t i = 0; i < WRITE_BUFFER_SIZE; i++) {
             if (!persist.write_buffer[i].valid) {
                 slot = &persist.write_buffer[i];
                 persist.writes_buffered++;
@@ -216,7 +216,7 @@ os_err_t os_persist_get(const char *key, void *buf, size_t buf_len, size_t *out_
     persist.total_reads++;
     
     /* Check write buffer first */
-    for (int i = 0; i < WRITE_BUFFER_SIZE; i++) {
+    for (uint32_t i = 0; i < WRITE_BUFFER_SIZE; i++) {
         if (persist.write_buffer[i].valid && 
             strcmp(persist.write_buffer[i].key, key) == 0) {
             size_t copy_len = persist.write_buffer[i].len;
@@ -241,7 +241,7 @@ os_err_t os_persist_del(const char *key) {
     }
     
     /* Remove from buffer if present */
-    for (int i = 0; i < WRITE_BUFFER_SIZE; i++) {
+    for (uint32_t i = 0; i < WRITE_BUFFER_SIZE; i++) {
         if (persist.write_buffer[i].valid && 
             strcmp(persist.write_buffer[i].key, key) == 0) {
             persist.write_buffer[i].valid = false;
@@ -259,7 +259,7 @@ bool os_persist_exists(const char *key) {
     }
     
     /* Check buffer */
-    for (int i = 0; i < WRITE_BUFFER_SIZE; i++) {
+    for (uint32_t i = 0; i < WRITE_BUFFER_SIZE; i++) {
         if (persist.write_buffer[i].valid && 
             strcmp(persist.write_buffer[i].key, key) == 0) {
             return true;
@@ -281,7 +281,7 @@ os_err_t os_persist_flush(void) {
     
     uint32_t flushed = 0;
     
-    for (int i = 0; i < WRITE_BUFFER_SIZE; i++) {
+    for (uint32_t i = 0; i < WRITE_BUFFER_SIZE; i++) {
         if (persist.write_buffer[i].valid) {
             os_err_t err = write_file(
                 persist.write_buffer[i].key,

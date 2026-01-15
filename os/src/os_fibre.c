@@ -132,22 +132,19 @@ os_err_t os_fibre_create(os_fibre_fn_t fn, void *arg, const char *name,
 
 /* Calculate stack usage by finding first non-pattern byte */
 static uint32_t calc_stack_used(os_fibre_t *fibre) {
-    uint32_t used = 0;
+    if (fibre->stack_size == 0) {
+        return 0;
+    }
+    
+    /* Find first non-pattern byte from bottom of stack */
     for (uint32_t i = 0; i < fibre->stack_size; i++) {
         if (fibre->stack_base[i] != 0xCD) {
-            used = fibre->stack_size - i;
-            break;
+            return fibre->stack_size - i;
         }
     }
-    /* If no non-pattern byte was found but stack exists, assume full usage */
-    if (used == 0 && fibre->stack_size > 0 && fibre->stack_base[0] == 0xCD) {
-        /* Stack is entirely unused - return 0 */
-        used = 0;
-    } else if (used == 0 && fibre->stack_size > 0) {
-        /* Entire stack has been used (no pattern bytes remain) */
-        used = fibre->stack_size;
-    }
-    return used;
+    
+    /* All bytes still have pattern - stack unused */
+    return 0;
 }
 
 void os_fibre_start(void) {

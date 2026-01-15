@@ -297,7 +297,7 @@ const cap_info_t *cap_get_info(cap_id_t id) {
 cap_id_t cap_parse_name(const char *name) {
     if (!name) return CAP_UNKNOWN;
     
-    for (int i = 0; i < CAP_MAX; i++) {
+    for (uint32_t i = 0; i < CAP_MAX; i++) {
         if (strcmp(name, cap_info_table[i].name) == 0) {
             return (cap_id_t)i;
         }
@@ -320,7 +320,7 @@ void cap_task(void *arg) {
 /* Internal functions */
 
 static node_cap_cache_t *find_cache(os_eui64_t node_addr) {
-    for (int i = 0; i < MAX_CAP_CACHE; i++) {
+    for (uint32_t i = 0; i < MAX_CAP_CACHE; i++) {
         if (service.cache[i].valid && service.cache[i].node_addr == node_addr) {
             return &service.cache[i];
         }
@@ -329,7 +329,7 @@ static node_cap_cache_t *find_cache(os_eui64_t node_addr) {
 }
 
 static node_cap_cache_t *alloc_cache(os_eui64_t node_addr) {
-    for (int i = 0; i < MAX_CAP_CACHE; i++) {
+    for (uint32_t i = 0; i < MAX_CAP_CACHE; i++) {
         if (!service.cache[i].valid) {
             service.cache[i].node_addr = node_addr;
             service.cache[i].cap_count = 0;

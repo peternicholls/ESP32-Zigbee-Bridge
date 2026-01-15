@@ -21,6 +21,12 @@
 /* Step timeout in ms */
 #define STEP_TIMEOUT_MS 5000
 
+/* Maximum retries per step before advancing */
+#define MAX_STEP_RETRIES 3
+
+/* Interview process poll interval in ms */
+#define INTERVIEW_POLL_MS 100
+
 /* Interview context */
 typedef struct {
     os_eui64_t ieee_addr;
@@ -117,7 +123,7 @@ void interview_process(void) {
         return;
     }
     
-    for (int i = 0; i < MAX_INTERVIEWS; i++) {
+    for (uint32_t i = 0; i < MAX_INTERVIEWS; i++) {
         interview_ctx_t *ctx = &service.interviews[i];
         if (!ctx->active) {
             continue;
@@ -137,7 +143,7 @@ void interview_process(void) {
         elapsed = os_now_ticks() - ctx->step_start_time;
         if (OS_TICKS_TO_MS(elapsed) > STEP_TIMEOUT_MS) {
             ctx->retry_count++;
-            if (ctx->retry_count > 3) {
+            if (ctx->retry_count > MAX_STEP_RETRIES) {
                 LOG_W(INTERVIEW_MODULE, "Step timeout, moving to next stage");
                 ctx->retry_count = 0;
                 /* Move to next stage on timeout */
@@ -179,7 +185,7 @@ void interview_task(void *arg) {
     
     while (1) {
         interview_process();
-        os_sleep(100);  /* Process every 100ms */
+        os_sleep(INTERVIEW_POLL_MS);  /* Process at configured interval */
     }
 }
 
@@ -193,7 +199,7 @@ const char *interview_stage_name(interview_stage_t stage) {
 /* Internal functions */
 
 static interview_ctx_t *find_interview(os_eui64_t ieee_addr) {
-    for (int i = 0; i < MAX_INTERVIEWS; i++) {
+    for (uint32_t i = 0; i < MAX_INTERVIEWS; i++) {
         if (service.interviews[i].active && 
             service.interviews[i].ieee_addr == ieee_addr) {
             return &service.interviews[i];
@@ -204,7 +210,7 @@ static interview_ctx_t *find_interview(os_eui64_t ieee_addr) {
 
 static interview_ctx_t *alloc_interview(os_eui64_t ieee_addr) {
     (void)ieee_addr;
-    for (int i = 0; i < MAX_INTERVIEWS; i++) {
+    for (uint32_t i = 0; i < MAX_INTERVIEWS; i++) {
         if (!service.interviews[i].active) {
             return &service.interviews[i];
         }

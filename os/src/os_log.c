@@ -143,7 +143,7 @@ os_log_level_t os_log_level_parse(const char *name) {
         return OS_LOG_LEVEL_INFO;
     }
     
-    for (int i = 0; i < OS_LOG_LEVEL_COUNT; i++) {
+    for (uint32_t i = 0; i < OS_LOG_LEVEL_COUNT; i++) {
         if (strcasecmp(name, level_names[i]) == 0) {
             return (os_log_level_t)i;
         }

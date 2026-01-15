@@ -26,6 +26,11 @@
 /* Maximum payload length */
 #define MAX_PAYLOAD_LEN 256
 
+/* Default configuration values */
+#define MQTT_DEFAULT_BROKER_URI  "mqtt://localhost:1883"
+#define MQTT_DEFAULT_CLIENT_ID   "zigbee-bridge"
+#define MQTT_DEFAULT_KEEPALIVE   30
+
 /* State names */
 static const char *state_names[] = {
     "DISCONNECTED",
@@ -56,9 +61,9 @@ os_err_t mqtt_init(const mqtt_config_t *config) {
         adapter.config = *config;
     } else {
         /* Default config */
-        adapter.config.broker_uri = "mqtt://localhost:1883";
-        adapter.config.client_id = "zigbee-bridge";
-        adapter.config.keepalive_sec = 30;
+        adapter.config.broker_uri = MQTT_DEFAULT_BROKER_URI;
+        adapter.config.client_id = MQTT_DEFAULT_CLIENT_ID;
+        adapter.config.keepalive_sec = MQTT_DEFAULT_KEEPALIVE;
     }
     
     adapter.state = MQTT_STATE_DISCONNECTED;
