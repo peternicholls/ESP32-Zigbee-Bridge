@@ -56,3 +56,6 @@ dkms.conf
 
 # Build output
 build/
+
+# CodeQL artifacts
+_codeql*
