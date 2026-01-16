@@ -155,6 +155,11 @@ os_err_t quirks_apply_value(const char *manufacturer, const char *model,
         return OS_OK;  /* No quirks, value unchanged */
     }
     
+    /* Validate action count against maximum to avoid out-of-bounds access */
+    if (entry->action_count > QUIRK_MAX_ACTIONS) {
+        return OS_ERR_INVALID_ARG;
+    }
+    
     /* Apply matching actions */
     for (uint8_t i = 0; i < entry->action_count; i++) {
         const quirk_action_t *action = &entry->actions[i];
@@ -214,6 +219,11 @@ os_err_t quirks_apply_command(const char *manufacturer, const char *model,
     const quirk_entry_t *entry = quirks_find(manufacturer, model);
     if (!entry) {
         return OS_OK;  /* No quirks, value unchanged */
+    }
+    
+    /* Validate action count against maximum to avoid out-of-bounds access */
+    if (entry->action_count > QUIRK_MAX_ACTIONS) {
+        return OS_ERR_INVALID_ARG;
     }
     
     /* Apply inverse of matching actions for commands */

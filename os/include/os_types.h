@@ -24,6 +24,7 @@ typedef enum {
     OS_ERR_BUSY = -7,
     OS_ERR_ALREADY_EXISTS = -8,
     OS_ERR_NOT_INITIALIZED = -9,
+    OS_ERR_NOT_READY = -10,
 } os_err_t;
 
 /* Time types */

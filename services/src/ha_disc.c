@@ -68,6 +68,56 @@ static void handle_node_removed(const os_event_t *event, void *ctx);
 static void add_pending(os_eui64_t node_addr);
 static bool check_node_has_cap(os_eui64_t node_addr, cap_id_t cap_id);
 
+/**
+ * @brief Escape a string for JSON encoding
+ * @param dest Destination buffer
+ * @param dest_size Size of destination buffer
+ * @param src Source string
+ * @return Number of characters written (excluding null terminator)
+ */
+static size_t json_escape_string(char *dest, size_t dest_size, const char *src) {
+    if (!dest || dest_size == 0 || !src) {
+        return 0;
+    }
+    
+    size_t written = 0;
+    const char *p = src;
+    
+    while (*p && written < dest_size - 1) {
+        switch (*p) {
+            case '"':
+            case '\\':
+                if (written + 2 >= dest_size) goto done;
+                dest[written++] = '\\';
+                dest[written++] = *p;
+                break;
+            case '\n':
+                if (written + 2 >= dest_size) goto done;
+                dest[written++] = '\\';
+                dest[written++] = 'n';
+                break;
+            case '\r':
+                if (written + 2 >= dest_size) goto done;
+                dest[written++] = '\\';
+                dest[written++] = 'r';
+                break;
+            case '\t':
+                if (written + 2 >= dest_size) goto done;
+                dest[written++] = '\\';
+                dest[written++] = 't';
+                break;
+            default:
+                dest[written++] = *p;
+                break;
+        }
+        p++;
+    }
+    
+done:
+    dest[written] = '\0';
+    return written;
+}
+
 os_err_t ha_disc_init(void) {
     if (service.initialized) {
         return OS_ERR_ALREADY_EXISTS;
@@ -112,30 +162,57 @@ os_err_t ha_disc_publish_node(os_eui64_t node_addr) {
     LOG_I(HA_MODULE, "Publishing discovery for node " OS_EUI64_FMT,
           OS_EUI64_ARG(node_addr));
     
+    os_err_t result = OS_OK;
+    
     /* Check for light capabilities and merge if both present */
     bool has_light_on = check_node_has_cap(node_addr, CAP_LIGHT_ON);
     bool has_light_level = check_node_has_cap(node_addr, CAP_LIGHT_LEVEL);
     
     if (has_light_on) {
         /* Publish merged light discovery (with or without brightness) */
-        publish_light_discovery(node_addr, has_light_level);
+        os_err_t err = publish_light_discovery(node_addr, has_light_level);
+        if (err != OS_OK) {
+            LOG_E(HA_MODULE, "Failed to publish light discovery for node " OS_EUI64_FMT " (err=%d)",
+                  OS_EUI64_ARG(node_addr), err);
+            if (result == OS_OK) result = err;
+        }
     }
     
     /* Publish sensor discoveries */
     if (check_node_has_cap(node_addr, CAP_SENSOR_TEMPERATURE)) {
-        publish_sensor_discovery(node_addr, CAP_SENSOR_TEMPERATURE);
+        os_err_t err = publish_sensor_discovery(node_addr, CAP_SENSOR_TEMPERATURE);
+        if (err != OS_OK) {
+            LOG_E(HA_MODULE, "Failed to publish temperature sensor discovery for node " OS_EUI64_FMT " (err=%d)",
+                  OS_EUI64_ARG(node_addr), err);
+            if (result == OS_OK) result = err;
+        }
     }
     if (check_node_has_cap(node_addr, CAP_SENSOR_HUMIDITY)) {
-        publish_sensor_discovery(node_addr, CAP_SENSOR_HUMIDITY);
+        os_err_t err = publish_sensor_discovery(node_addr, CAP_SENSOR_HUMIDITY);
+        if (err != OS_OK) {
+            LOG_E(HA_MODULE, "Failed to publish humidity sensor discovery for node " OS_EUI64_FMT " (err=%d)",
+                  OS_EUI64_ARG(node_addr), err);
+            if (result == OS_OK) result = err;
+        }
     }
     if (check_node_has_cap(node_addr, CAP_SENSOR_CONTACT)) {
-        publish_sensor_discovery(node_addr, CAP_SENSOR_CONTACT);
+        os_err_t err = publish_sensor_discovery(node_addr, CAP_SENSOR_CONTACT);
+        if (err != OS_OK) {
+            LOG_E(HA_MODULE, "Failed to publish contact sensor discovery for node " OS_EUI64_FMT " (err=%d)",
+                  OS_EUI64_ARG(node_addr), err);
+            if (result == OS_OK) result = err;
+        }
     }
     if (check_node_has_cap(node_addr, CAP_SENSOR_MOTION)) {
-        publish_sensor_discovery(node_addr, CAP_SENSOR_MOTION);
+        os_err_t err = publish_sensor_discovery(node_addr, CAP_SENSOR_MOTION);
+        if (err != OS_OK) {
+            LOG_E(HA_MODULE, "Failed to publish motion sensor discovery for node " OS_EUI64_FMT " (err=%d)",
+                  OS_EUI64_ARG(node_addr), err);
+            if (result == OS_OK) result = err;
+        }
     }
     
-    return OS_OK;
+    return result;
 }
 
 os_err_t ha_disc_unpublish_node(os_eui64_t node_addr) {
@@ -144,11 +221,13 @@ os_err_t ha_disc_unpublish_node(os_eui64_t node_addr) {
     }
     
     if (mqtt_get_state() != MQTT_STATE_CONNECTED) {
-        return OS_ERR_NOT_INITIALIZED;
+        return OS_ERR_NOT_READY;
     }
     
     LOG_I(HA_MODULE, "Unpublishing discovery for node " OS_EUI64_FMT,
           OS_EUI64_ARG(node_addr));
+    
+    os_err_t result = OS_OK;
     
     /* Publish empty payloads to remove entities (with retain) */
     char topic[256];
@@ -156,7 +235,12 @@ os_err_t ha_disc_unpublish_node(os_eui64_t node_addr) {
     /* Remove light entity */
     snprintf(topic, sizeof(topic), "%s/light/%s_" OS_EUI64_FMT "_light/config",
              HA_DISCOVERY_PREFIX, HA_BRIDGE_ID, OS_EUI64_ARG(node_addr));
-    mqtt_publish(topic, "", 0);
+    os_err_t err = mqtt_publish(topic, "", 0);
+    if (err != OS_OK) {
+        LOG_E(HA_MODULE, "Failed to unpublish light for node " OS_EUI64_FMT " (err=%d)",
+              OS_EUI64_ARG(node_addr), err);
+        if (result == OS_OK) result = err;
+    }
     
     /* Remove sensor entities */
     const cap_id_t sensors[] = {
@@ -178,11 +262,16 @@ os_err_t ha_disc_unpublish_node(os_eui64_t node_addr) {
             snprintf(topic, sizeof(topic), "%s/sensor/%s_" OS_EUI64_FMT "_%s/config",
                      HA_DISCOVERY_PREFIX, HA_BRIDGE_ID, OS_EUI64_ARG(node_addr),
                      cap_sanitized);
-            mqtt_publish(topic, "", 0);
+            err = mqtt_publish(topic, "", 0);
+            if (err != OS_OK) {
+                LOG_E(HA_MODULE, "Failed to unpublish sensor %s for node " OS_EUI64_FMT " (err=%d)",
+                      info->name, OS_EUI64_ARG(node_addr), err);
+                if (result == OS_OK) result = err;
+            }
         }
     }
     
-    return OS_OK;
+    return result;
 }
 
 uint32_t ha_disc_publish_all(void) {
@@ -284,8 +373,10 @@ os_err_t ha_disc_generate_config(os_eui64_t node_addr, cap_id_t cap_id,
     reg_node_t *node = reg_find_node(node_addr);
     if (node && node->friendly_name[0]) {
         strncpy(out_config->name, node->friendly_name, sizeof(out_config->name) - 1);
+        out_config->name[sizeof(out_config->name) - 1] = '\0';
     } else if (node && node->model[0]) {
         strncpy(out_config->name, node->model, sizeof(out_config->name) - 1);
+        out_config->name[sizeof(out_config->name) - 1] = '\0';
     } else {
         snprintf(out_config->name, sizeof(out_config->name),
                  "Zigbee " OS_EUI64_FMT, OS_EUI64_ARG(node_addr));
@@ -302,6 +393,7 @@ os_err_t ha_disc_generate_config(os_eui64_t node_addr, cap_id_t cap_id,
     
     strncpy(out_config->availability_topic, HA_AVAILABILITY_TOPIC,
             sizeof(out_config->availability_topic) - 1);
+    out_config->availability_topic[sizeof(out_config->availability_topic) - 1] = '\0';
     
     return OS_OK;
 }
@@ -331,10 +423,20 @@ static os_err_t publish_light_discovery(os_eui64_t node_addr, bool has_level) {
     char payload[HA_MAX_PAYLOAD_SIZE];
     
     reg_node_t *node = reg_find_node(node_addr);
-    const char *name = (node && node->friendly_name[0]) ? node->friendly_name :
-                       (node && node->model[0]) ? node->model : "Zigbee Light";
-    const char *manufacturer = (node && node->manufacturer[0]) ? node->manufacturer : "";
-    const char *model = (node && node->model[0]) ? node->model : "";
+    
+    /* Get device info and escape for JSON */
+    char name_escaped[64];
+    char manufacturer_escaped[64];
+    char model_escaped[64];
+    
+    const char *name_raw = (node && node->friendly_name[0]) ? node->friendly_name :
+                           (node && node->model[0]) ? node->model : "Zigbee Light";
+    const char *manufacturer_raw = (node && node->manufacturer[0]) ? node->manufacturer : "";
+    const char *model_raw = (node && node->model[0]) ? node->model : "";
+    
+    json_escape_string(name_escaped, sizeof(name_escaped), name_raw);
+    json_escape_string(manufacturer_escaped, sizeof(manufacturer_escaped), manufacturer_raw);
+    json_escape_string(model_escaped, sizeof(model_escaped), model_raw);
     
     /* Build discovery topic */
     snprintf(topic, sizeof(topic), "%s/light/%s_" OS_EUI64_FMT "_light/config",
@@ -367,7 +469,7 @@ static os_err_t publish_light_discovery(os_eui64_t node_addr, bool has_level) {
                    "\"model\":\"%s\""
                  "}"
                  "}",
-                 name,
+                 name_escaped,
                  HA_BRIDGE_ID, OS_EUI64_ARG(node_addr),
                  HA_AVAILABILITY_TOPIC,
                  OS_EUI64_ARG(node_addr),
@@ -375,7 +477,7 @@ static os_err_t publish_light_discovery(os_eui64_t node_addr, bool has_level) {
                  OS_EUI64_ARG(node_addr),
                  OS_EUI64_ARG(node_addr),
                  HA_BRIDGE_ID, OS_EUI64_ARG(node_addr),
-                 name, manufacturer, model);
+                 name_escaped, manufacturer_escaped, model_escaped);
     } else {
         /* Simple on/off light */
         snprintf(payload, sizeof(payload),
@@ -398,13 +500,13 @@ static os_err_t publish_light_discovery(os_eui64_t node_addr, bool has_level) {
                    "\"model\":\"%s\""
                  "}"
                  "}",
-                 name,
+                 name_escaped,
                  HA_BRIDGE_ID, OS_EUI64_ARG(node_addr),
                  HA_AVAILABILITY_TOPIC,
                  OS_EUI64_ARG(node_addr),
                  OS_EUI64_ARG(node_addr),
                  HA_BRIDGE_ID, OS_EUI64_ARG(node_addr),
-                 name, manufacturer, model);
+                 name_escaped, manufacturer_escaped, model_escaped);
     }
     
     return mqtt_publish(topic, payload, strlen(payload));
@@ -420,10 +522,22 @@ static os_err_t publish_sensor_discovery(os_eui64_t node_addr, cap_id_t cap_id) 
     }
     
     reg_node_t *node = reg_find_node(node_addr);
-    const char *device_name = (node && node->friendly_name[0]) ? node->friendly_name :
-                              (node && node->model[0]) ? node->model : "Zigbee Sensor";
-    const char *manufacturer = (node && node->manufacturer[0]) ? node->manufacturer : "";
-    const char *model = (node && node->model[0]) ? node->model : "";
+    
+    /* Get device info and escape for JSON */
+    char device_name_escaped[64];
+    char manufacturer_escaped[64];
+    char model_escaped[64];
+    char unit_escaped[16];
+    
+    const char *device_name_raw = (node && node->friendly_name[0]) ? node->friendly_name :
+                                  (node && node->model[0]) ? node->model : "Zigbee Sensor";
+    const char *manufacturer_raw = (node && node->manufacturer[0]) ? node->manufacturer : "";
+    const char *model_raw = (node && node->model[0]) ? node->model : "";
+    
+    json_escape_string(device_name_escaped, sizeof(device_name_escaped), device_name_raw);
+    json_escape_string(manufacturer_escaped, sizeof(manufacturer_escaped), manufacturer_raw);
+    json_escape_string(model_escaped, sizeof(model_escaped), model_raw);
+    json_escape_string(unit_escaped, sizeof(unit_escaped), cap_info->unit);
     
     /* Sanitize capability name */
     char cap_sanitized[32];
@@ -436,7 +550,6 @@ static os_err_t publish_sensor_discovery(os_eui64_t node_addr, cap_id_t cap_id) 
     /* Determine HA component and device class */
     const char *component = "sensor";
     const char *device_class = "";
-    const char *unit = cap_info->unit;
     
     switch (cap_id) {
         case CAP_SENSOR_TEMPERATURE:
@@ -481,14 +594,14 @@ static os_err_t publish_sensor_discovery(os_eui64_t node_addr, cap_id_t cap_id) 
                "\"model\":\"%s\""
              "}"
              "}",
-             device_name, cap_info->name,
+             device_name_escaped, cap_info->name,
              HA_BRIDGE_ID, OS_EUI64_ARG(node_addr), cap_sanitized,
              device_class,
              OS_EUI64_ARG(node_addr), cap_info->name,
-             unit,
+             unit_escaped,
              HA_AVAILABILITY_TOPIC,
              HA_BRIDGE_ID, OS_EUI64_ARG(node_addr),
-             device_name, manufacturer, model);
+             device_name_escaped, manufacturer_escaped, model_escaped);
     
     return mqtt_publish(topic, payload, strlen(payload));
 }
