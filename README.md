@@ -183,6 +183,8 @@ Failed: 0
 └──────────────────────────────────────────────────┘
 ```
 
+Specs and project plans live in `docs/spec/` (mirrored from `Prompts/`). 
+
 ### Directory Structure
 
 ```

@@ -97,6 +97,20 @@ os_err_t os_persist_erase_all(void);
  */
 void os_persist_get_stats(uint32_t *writes_buffered, uint32_t *total_writes, uint32_t *total_reads);
 
+typedef struct {
+    uint32_t writes_buffered;
+    uint32_t total_writes;
+    uint32_t total_reads;
+    os_tick_t last_flush_tick;
+    os_err_t last_error;
+} os_persist_stats_t;
+
+/**
+ * @brief Get extended persistence statistics
+ * @param stats Output stats structure
+ */
+void os_persist_get_stats_ex(os_persist_stats_t *stats);
+
 /* Persistence task for periodic flush (run as fibre) */
 void os_persist_task(void *arg);
 

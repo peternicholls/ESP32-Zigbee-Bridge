@@ -1,0 +1,48 @@
+id: trace_harness_v1
+name: golden_trace_record_replay
+goal: >
+  Maximize progress without hardware by validating domain behaviour against
+  deterministic event traces.
+
+format:
+  file: "trace/*.jsonl"
+  record:
+    each_line: { ts: u32_ms, type: "<event_type>", payload: "<typed_json>", corr_id: "<optional_u32>" }
+  ordering: "append-only; stable"
+
+capture_points:
+  - name: bus_tap
+    location: "after_enqueue_before_consume"
+    record_events:
+      include:
+        - ZB_DEVICE_JOINED
+        - ZB_ANNOUNCE
+        - ZB_DESC_ENDPOINTS
+        - ZB_DESC_CLUSTERS
+        - ZB_ATTR_REPORT
+        - CAP_COMMAND
+        - CAP_STATE_CHANGED
+        - MQTT_PUBLISH_INTENT
+        - PERSIST_FLUSH
+      exclude:
+        - LOG  # optional
+  - name: mqtt_tap
+    location: "publish call boundary"
+    record_fields: [topic, payload_bytes, retain, qos]
+
+replay:
+  runner:
+    feeds: "events into bus at recorded cadence or accelerated"
+    modes: [real_time, accelerated, step]
+  assertions:
+    - "registry FSM states match expected snapshots"
+    - "capability states match expected values + provenance"
+    - "MQTT publishes emitted match expected (topic+payload+retain)"
+    - "persistence flushes triggered as expected (debounce honoured)"
+  fixtures:
+    - id: trace_join_interview_ready
+      purpose: "Join -> interview -> READY -> initial reports"
+    - id: trace_command_ack_reconcile
+      purpose: "Set command -> confirm/error -> reconcile with report/read"
+    - id: trace_reboot_restore_republish
+      purpose: "Restore registry -> MQTT up -> republish state/discovery"

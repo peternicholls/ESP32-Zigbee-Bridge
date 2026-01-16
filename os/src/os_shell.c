@@ -10,7 +10,9 @@
 #include "os_log.h"
 #include "os_console.h"
 #include "os_event.h"
+#include "os_persist.h"
 #include "os_config.h"
+#include "mqtt_adapter.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,6 +34,10 @@ static int cmd_ps(int argc, char *argv[]);
 static int cmd_uptime(int argc, char *argv[]);
 static int cmd_loglevel(int argc, char *argv[]);
 static int cmd_stats(int argc, char *argv[]);
+static int cmd_sched(int argc, char *argv[]);
+static int cmd_events(int argc, char *argv[]);
+static int cmd_persist(int argc, char *argv[]);
+static int cmd_mqtt(int argc, char *argv[]);
 
 /* Built-in commands */
 static const os_shell_cmd_t builtin_commands[] = {
@@ -40,6 +46,10 @@ static const os_shell_cmd_t builtin_commands[] = {
     {"uptime",   "Show system uptime",               cmd_uptime},
     {"loglevel", "Get/set log level [level]",        cmd_loglevel},
     {"stats",    "Show event bus statistics",        cmd_stats},
+    {"sched",    "Show scheduler statistics",        cmd_sched},
+    {"events",   "Alias for 'stats'",                cmd_events},
+    {"persist",  "Show persistence statistics",      cmd_persist},
+    {"mqtt",     "Show MQTT statistics",             cmd_mqtt},
     {NULL, NULL, NULL}
 };
 
@@ -225,5 +235,82 @@ static int cmd_stats(int argc, char *argv[]) {
         printf("  Queue size:   %u\n", stats.current_queue_size);
         printf("  High water:   %u\n", stats.queue_high_water);
     }
+    return 0;
+}
+
+static int cmd_sched(int argc, char *argv[]) {
+    (void)argc;
+    (void)argv;
+    
+    os_sched_stats_t stats;
+    if (os_fibre_get_stats(&stats) != OS_OK) {
+        printf("Scheduler stats unavailable\n");
+        return -1;
+    }
+    
+    printf("Scheduler Stats:\n");
+    printf("  Ticks:        %" PRIu32 "\n", (uint32_t)stats.ticks);
+    printf("  Fibres:       %u\n", stats.fibre_count);
+    printf("  Ready:        %u\n", stats.ready_count);
+    printf("  Sleeping:     %u\n", stats.sleeping_count);
+    
+    printf("\n%-4s %-12s %-10s %8s %8s %10s %10s %10s\n",
+           "ID", "NAME", "STATE", "STACK", "USED", "RUNS", "LAST", "TOTAL");
+    printf("---- ------------ ---------- -------- -------- ---------- ---------- ----------\n");
+    
+    const char *state_names[] = {"READY", "RUNNING", "SLEEPING", "BLOCKED", "DEAD"};
+    
+    uint32_t count = os_fibre_count();
+    for (uint32_t i = 0; i < count; i++) {
+        os_fibre_info_t info;
+        if (os_fibre_get_info(i, &info) == OS_OK) {
+            const char *state = (info.state < 5) ? state_names[info.state] : "?";
+            printf("%-4u %-12s %-10s %8u %8u %10u %10" PRIu32 " %10" PRIu32 "\n",
+                   i, info.name, state, info.stack_size, info.stack_used, info.run_count,
+                   (uint32_t)info.last_run_tick, (uint32_t)info.total_run_ticks);
+        }
+    }
+    
+    return 0;
+}
+
+static int cmd_events(int argc, char *argv[]) {
+    return cmd_stats(argc, argv);
+}
+
+static int cmd_persist(int argc, char *argv[]) {
+    (void)argc;
+    (void)argv;
+    
+    os_persist_stats_t stats;
+    os_persist_get_stats_ex(&stats);
+    
+    printf("Persistence Stats:\n");
+    printf("  Buffered:     %u\n", stats.writes_buffered);
+    printf("  Writes:       %u\n", stats.total_writes);
+    printf("  Reads:        %u\n", stats.total_reads);
+    printf("  Last flush:   %" PRIu32 "\n", (uint32_t)stats.last_flush_tick);
+    printf("  Last error:   %d\n", stats.last_error);
+    
+    return 0;
+}
+
+static int cmd_mqtt(int argc, char *argv[]) {
+    (void)argc;
+    (void)argv;
+    
+    mqtt_stats_t stats;
+    if (mqtt_get_stats(&stats) != OS_OK) {
+        printf("MQTT stats unavailable\n");
+        return -1;
+    }
+    
+    printf("MQTT Stats:\n");
+    printf("  State:        %s\n", mqtt_state_name(mqtt_get_state()));
+    printf("  Published:    %u\n", stats.messages_published);
+    printf("  Received:     %u\n", stats.messages_received);
+    printf("  Reconnects:   %u\n", stats.reconnects);
+    printf("  Errors:       %u\n", stats.errors);
+    
     return 0;
 }

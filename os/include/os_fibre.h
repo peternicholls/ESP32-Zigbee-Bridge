@@ -42,8 +42,17 @@ typedef struct {
     uint32_t stack_size;
     uint32_t stack_used;
     uint32_t run_count;
+    os_tick_t last_run_tick;
+    os_tick_t total_run_ticks;  /* Note: This is a run count, not a time duration */
     os_tick_t wake_tick;
 } os_fibre_info_t;
+
+typedef struct {
+    os_tick_t ticks;
+    uint32_t fibre_count;
+    uint32_t ready_count;
+    uint32_t sleeping_count;
+} os_sched_stats_t;
 
 /**
  * @brief Initialize the fibre scheduler
@@ -104,6 +113,13 @@ uint32_t os_fibre_count(void);
  * @return OS_OK on success
  */
 os_err_t os_fibre_get_info(uint32_t index, os_fibre_info_t *info);
+
+/**
+ * @brief Get scheduler statistics
+ * @param stats Output stats
+ * @return OS_OK on success
+ */
+os_err_t os_fibre_get_stats(os_sched_stats_t *stats);
 
 /**
  * @brief Get the current fibre handle

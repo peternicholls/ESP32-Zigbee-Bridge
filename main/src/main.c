@@ -9,8 +9,11 @@
 #include "registry.h"
 #include "interview.h"
 #include "capability.h"
+#include "ha_disc.h"
+#include "local_node.h"
 #include "mqtt_adapter.h"
 #include "app_blink.h"
+#include "zb_adapter.h"
 #include <stdio.h>
 #include <signal.h>
 
@@ -100,6 +103,33 @@ int main(int argc, char *argv[]) {
     if (err != OS_OK) {
         LOG_E(MAIN_MODULE, "MQTT init failed: %d", err);
     }
+
+    /* Initialize Zigbee adapter */
+    err = zb_init();
+    if (err != OS_OK) {
+        LOG_E(MAIN_MODULE, "Zigbee adapter init failed: %d", err);
+    }
+
+    err = zb_start_coordinator();
+    if (err != OS_OK) {
+        LOG_E(MAIN_MODULE, "Zigbee coordinator start failed: %d", err);
+    }
+
+#if OS_FEATURE_HA_DISC
+    /* Initialize HA discovery service */
+    err = ha_disc_init();
+    if (err != OS_OK) {
+        LOG_E(MAIN_MODULE, "HA discovery init failed: %d", err);
+    }
+#endif
+
+#if OS_FEATURE_LOCAL_NODE
+    /* Initialize local node service */
+    err = local_node_init();
+    if (err != OS_OK) {
+        LOG_E(MAIN_MODULE, "Local node init failed: %d", err);
+    }
+#endif
     
     /* Initialize registry shell commands */
     reg_shell_init();
@@ -129,6 +159,20 @@ int main(int argc, char *argv[]) {
     if (err != OS_OK) {
         LOG_E(MAIN_MODULE, "Failed to create mqtt task: %d", err);
     }
+
+#if OS_FEATURE_HA_DISC
+    err = os_fibre_create(ha_disc_task, NULL, "ha_disc", 2048, NULL);
+    if (err != OS_OK) {
+        LOG_E(MAIN_MODULE, "Failed to create HA discovery task: %d", err);
+    }
+#endif
+
+#if OS_FEATURE_LOCAL_NODE
+    err = os_fibre_create(local_node_task, NULL, "local", 2048, NULL);
+    if (err != OS_OK) {
+        LOG_E(MAIN_MODULE, "Failed to create local node task: %d", err);
+    }
+#endif
     
     LOG_I(MAIN_MODULE, "Created %u fibres", os_fibre_count());
     

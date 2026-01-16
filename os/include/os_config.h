@@ -33,6 +33,10 @@
 /* Timer configuration */
 #define OS_TIMER_TICK_MS        1
 
+/* Feature flags */
+#define OS_FEATURE_HA_DISC      1
+#define OS_FEATURE_LOCAL_NODE   1
+
 /* Platform detection */
 #if defined(ESP_PLATFORM)
     #define OS_PLATFORM_ESP32   1

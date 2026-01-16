@@ -1,0 +1,214 @@
+status_md:
+  purpose: >
+    Single snapshot file updated each session to carry continuity across fresh context windows.
+    Keep it short, factual, and check-box driven. No essays.
+  file: "STATUS.md"
+
+  sections:
+    - id: "current_state"
+      title: "Current state"
+      fields:
+        - key: "date_utc"
+          type: "string"
+          example: "2026-01-15"
+        - key: "commit"
+          type: "string"
+          example: "abc1234 (or 'unknown')"
+        - key: "branch"
+          type: "string"
+          example: "main"
+        - key: "last_completed_milestone"
+          type: "string"
+          example: "M1"
+        - key: "next_milestone_in_progress"
+          type: "string"
+          example: "M2"
+        - key: "active_task_ids"
+          type: "list[string]"
+          example: ["T020", "T021"]
+        - key: "known_blockers"
+          type: "list[string]"
+          example:
+            - "Zigbee stack init fails: error code -0x1234"
+            - "MQTT reconnect loop unstable after Wi-Fi roam"
+
+    - id: "verified_working"
+      title: "Verified working"
+      fields:
+        - key: "checklist"
+          type: "list[check]"
+          description: "Use [x]/[ ] checkboxes; only tick items you've personally verified on hardware."
+          items:
+            - id: "boots_reliably"
+              label: "Boots reliably"
+            - id: "shell_responsive"
+              label: "Shell responsive over UART"
+            - id: "fibres_switching"
+              label: "Fibres switching (>=3 tasks)"
+            - id: "event_bus_stable"
+              label: "Event bus stable under load"
+            - id: "logging_stable"
+              label: "Logging queue stable (no stalls)"
+            - id: "persistence_stable"
+              label: "Persistence stable across reboot"
+            - id: "zigbee_coordinator_up"
+              label: "Zigbee coordinator up"
+            - id: "permit_join_works"
+              label: "Permit join works"
+            - id: "interview_works"
+              label: "Interview/provisioner works"
+            - id: "registry_persists"
+              label: "Registry persists and restores"
+            - id: "light_control_end_to_end"
+              label: "Light control end-to-end"
+            - id: "mqtt_up"
+              label: "MQTT connects and stays connected"
+            - id: "mqtt_publish_state"
+              label: "MQTT publishes state updates"
+            - id: "mqtt_commands_work"
+              label: "MQTT commands trigger Zigbee actions"
+
+    - id: "progress_notes"
+      title: "Progress notes"
+      fields:
+        - key: "since_last_update"
+          type: "list[string]"
+          description: "Bullets: what changed since last STATUS update."
+        - key: "today_focus"
+          type: "list[string]"
+          description: "Bullets: what you intend to do next (1–3 items)."
+        - key: "next_actions"
+          type: "list[string]"
+          description: "Immediate next actions, phrased as atomic tasks."
+
+    - id: "decisions_locked_in"
+      title: "Decisions locked in"
+      fields:
+        - key: "substrate_approach"
+          type: "string"
+          example: "ESP-IDF/FreeRTOS substrate; kernel-in-a-task for fibres/services"
+        - key: "capability_taxonomy_version"
+          type: "string"
+          example: "caps-v0"
+        - key: "command_semantics"
+          type: "string"
+          example: "actuators optimistic_with_reconcile; sensors report_driven"
+        - key: "mqtt_topic_scheme"
+          type: "string"
+          example: "bridge/<node_id>/<capability>/{state|set|meta}"
+        - key: "persistence_schema_version"
+          type: "string"
+          example: "1"
+        - key: "queue_overflow_policy"
+          type: "string"
+          example: "drop_oldest_noncritical; log and count drops"
+
+    - id: "metrics"
+      title: "Metrics"
+      fields:
+        - key: "counters"
+          type: "map[string,int]"
+          description: "Key runtime counters you track (dropped events, reconnects, etc.)."
+          example:
+            events_dropped_total: 12
+            log_dropped_total: 0
+            mqtt_reconnects: 3
+            zigbee_join_events: 5
+        - key: "resource_usage"
+          type: "map[string,string]"
+          description: "Optional: stack/heap usage snapshots."
+          example:
+            heap_free: "128KB"
+            max_stack_shell: "1.5KB"
+            max_stack_bus: "1.2KB"
+
+    - id: "open_questions"
+      title: "Open questions"
+      fields:
+        - key: "items"
+          type: "list[string]"
+          description: "Unresolved design questions or investigations needed."
+
+    - id: "blockers_and_risks"
+      title: "Blockers and risks"
+      fields:
+        - key: "blockers"
+          type: "list[string]"
+        - key: "risks"
+          type: "list[string]"
+          description: "Short risk statements; link to risk register IDs if used."
+
+    - id: "how_to_resume"
+      title: "How to resume"
+      fields:
+        - key: "paste_into_new_chat"
+          type: "string"
+          description: >
+            A short line telling future-you exactly what to paste into a fresh chat:
+            Context Capsule + this STATUS snapshot + next task request.
+          example: "Paste Context Capsule + this STATUS.md + 'Implement T030 (M3 registry)'."
+
+  rendered_markdown_template:
+    description: "A literal STATUS.md skeleton you can copy/paste and keep updated."
+    content: |
+      # STATUS
+
+      ## Current state
+      - Date (UTC):
+      - Commit:
+      - Branch:
+      - Last completed milestone:
+      - Next milestone in progress:
+      - Active task IDs:
+      - Known blockers:
+
+      ## Verified working
+      - [ ] Boots reliably
+      - [ ] Shell responsive over UART
+      - [ ] Fibres switching (>=3 tasks)
+      - [ ] Event bus stable under load
+      - [ ] Logging queue stable (no stalls)
+      - [ ] Persistence stable across reboot
+      - [ ] Zigbee coordinator up
+      - [ ] Permit join works
+      - [ ] Interview/provisioner works
+      - [ ] Registry persists and restores
+      - [ ] Light control end-to-end
+      - [ ] MQTT connects and stays connected
+      - [ ] MQTT publishes state updates
+      - [ ] MQTT commands trigger Zigbee actions
+
+      ## Progress notes
+      **Since last update**
+      - 
+
+      **Today focus**
+      - 
+
+      **Next actions**
+      - 
+
+      ## Decisions locked in
+      - Substrate approach:
+      - Capability taxonomy version:
+      - Command semantics:
+      - MQTT topic scheme:
+      - Persistence schema version:
+      - Queue overflow policy:
+
+      ## Metrics
+      - Counters:
+      - Resource usage:
+
+      ## Open questions
+      - 
+
+      ## Blockers and risks
+      **Blockers**
+      - 
+
+      **Risks**
+      - 
+
+      ## How to resume
+      Paste: Context Capsule + this STATUS.md + the next task request.

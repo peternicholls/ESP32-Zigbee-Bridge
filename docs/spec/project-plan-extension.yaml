@@ -1,0 +1,333 @@
+# Continuation / extensions to make the PRD-plan YAML more complete and operational.
+
+governance:
+  principles:
+    - "Clean boundaries: drivers/adapters publish events, domain services consume and emit canonical events."
+    - "No callback soup: callbacks enqueue, never own business logic."
+    - "Data-driven mappings: prefer tables/config over scattered conditionals."
+    - "Correctness before performance: optimise after stability is proven."
+    - "Recoverability: reboot-safe by design (persist identity + progress markers)."
+    - "Observability: every critical transition is visible via logs and shell."
+
+  constraints:
+    - "Fixed memory first (no malloc in v0 kernel layer)."
+    - "Bounded queues everywhere with explicit overflow policy."
+    - "Single-writer or locked console output."
+
+  coding_standards:
+    language: "C (with minimal asm only if needed later)"
+    style:
+      - "Explicit sizes (uint32_t etc.)"
+      - "No hidden globals; centralise state in services"
+      - "No long critical sections"
+      - "Prefer pure functions for mapping/translation logic"
+    error_handling:
+      - "Return explicit error codes"
+      - "Never silently drop critical events without logging"
+    naming:
+      modules_prefixes:
+        os: "os_"
+        bus: "bus_"
+        log: "log_"
+        persist: "persist_"
+        registry: "reg_"
+        zigbee_adapter: "zb_"
+        mqtt_adapter: "mqtt_"
+        capability: "cap_"
+
+delivery_artifacts:
+  documentation:
+    - "docs/README.md (architecture + context capsule)"
+    - "docs/DECISIONS.md (ADR-style short decisions)"
+    - "docs/EVENTS.md (event types + payload schema)"
+    - "docs/CAPABILITIES.md (taxonomy + types + units)"
+    - "STATUS.md (snapshot format, updated each session)"
+  diagnostics:
+    - "Serial shell commands"
+    - "Structured logging output"
+    - "Optional: debug event trace ring buffer dump"
+
+dependencies:
+  esp_idf:
+    required_components:
+      - "NVS"
+      - "Wi-Fi"
+      - "TCP/IP (LWIP)"
+      - "MQTT client"
+      - "Zigbee stack / 802.15.4 support for ESP32-C6"
+    optional_components:
+      - "console helpers (optional, but we likely implement our own shell)"
+      - "SPIFFS/LittleFS (not in v0)"
+
+  external_systems:
+    mqtt_broker:
+      examples:
+        - "Mosquitto on Home Assistant host"
+    home_assistant:
+      integration_path:
+        - "MQTT integration first"
+        - "HA discovery later"
+    matter:
+      status: "future"
+      note: "Keep capability model strict to map to Matter clusters later."
+
+interfaces:
+  module_interfaces:
+    event_bus:
+      api:
+        - "bus_init(config)"
+        - "bus_publish(event)"
+        - "bus_subscribe(filter, handler)"
+        - "bus_poll_dispatch(max_events)"
+      threading_model: "Single dispatcher fibre recommended; producers enqueue"
+    scheduler:
+      api:
+        - "os_init()"
+        - "os_task_create(fn, name, stack, stack_size)"
+        - "os_start()"
+        - "os_yield()"
+        - "os_sleep(ms)"
+        - "os_now_ticks()"
+    persistence:
+      api:
+        - "persist_init()"
+        - "persist_put(key, blob)"
+        - "persist_get(key) -> blob"
+        - "persist_del(key)"
+        - "persist_flush()"
+    logging:
+      api:
+        - "log_write(level, module, msg, kv_pairs?)"
+        - "log_set_level(level)"
+      guarantee:
+        - "Never blocks in ISR/callback context; enqueues."
+
+event_schemas:
+  # Keep payloads small and fixed-size where possible; store large strings in registry/persistence.
+  common:
+    corr_id:
+      type: "uint32"
+      use: "Correlate requests and responses (interview steps, command ack, etc.)"
+    node_id:
+      type: "EUI64"
+      encoding: "uint64 or 8-byte array"
+  payloads:
+    ZB_DEVICE_JOINED:
+      fields:
+        - "node_eui64"
+        - "nwk_short_addr"
+        - "lqi"
+        - "rssi_optional"
+    ZB_DEVICE_LEFT:
+      fields:
+        - "node_eui64"
+        - "reason_code_optional"
+    ZB_DESC_ENDPOINTS:
+      fields:
+        - "node_eui64"
+        - "endpoints: [uint8]"
+    ZB_DESC_CLUSTERS:
+      fields:
+        - "node_eui64"
+        - "endpoint_id"
+        - "server_clusters: [uint16]"
+        - "client_clusters: [uint16]"
+    ZB_ATTR_REPORT:
+      fields:
+        - "node_eui64"
+        - "endpoint_id"
+        - "cluster_id"
+        - "attribute_id"
+        - "zigbee_type"
+        - "value_bytes"
+        - "value_len"
+    CAP_STATE_CHANGED:
+      fields:
+        - "node_eui64"
+        - "cap_id"
+        - "value_variant"
+        - "ts"
+    CAP_COMMAND:
+      fields:
+        - "node_eui64"
+        - "cap_id"
+        - "command"
+        - "arg_variant_optional"
+        - "qos: optimistic|confirmed"
+        - "corr_id"
+
+queue_policies:
+  event_bus:
+    queue_type: "ring_buffer"
+    size: 256  # tune later
+    overflow_policy:
+      default: "drop_oldest_noncritical"
+      critical_types:
+        - "ZB_DEVICE_JOINED"
+        - "ZB_DEVICE_LEFT"
+        - "PERSIST_FLUSH"
+      critical_policy: "drop_oldest_but_log_loudly_and_increment_counter"
+    counters:
+      - "events_dropped_total"
+      - "events_dropped_by_type"
+  logging:
+    queue_type: "ring_buffer"
+    overflow_policy: "drop_oldest"
+    note: "Never allow logging to destabilise runtime."
+
+capability_mapping:
+  # Define mapping as data so adding devices is mostly table work.
+  zigbee_to_capability_rules:
+    - cap_id: "light.on"
+      match:
+        cluster_id: 0x0006
+        attribute_id: 0x0000
+      decode:
+        type: "bool"
+        transform: "identity"
+    - cap_id: "light.level"
+      match:
+        cluster_id: 0x0008
+        attribute_id: 0x0000
+      decode:
+        type: "uint8"
+        transform: "scale_0_254_to_0_100"
+
+  capability_to_zigbee_commands:
+    - cap_id: "light.on"
+      commands:
+        set_true:
+          cluster_id: 0x0006
+          zcl_command: "On"
+        set_false:
+          cluster_id: 0x0006
+          zcl_command: "Off"
+    - cap_id: "light.level"
+      commands:
+        set_level_percent:
+          cluster_id: 0x0008
+          zcl_command: "MoveToLevelWithOnOff"
+          args:
+            level: "scale_0_100_to_0_254"
+            transition_time_ds: 2
+
+mqtt_details:
+  connection:
+    reconnect_backoff_ms: [250, 500, 1000, 2000, 5000, 10000]
+    keepalive_sec: 30
+    will_message:
+      topic: "bridge/status"
+      payload: '{"v":"offline"}'
+  publications:
+    status:
+      topic: "bridge/status"
+      payload_online: '{"v":"online"}'
+  qos:
+    state_publish: 0
+    command_subscribe: 0
+  retained:
+    meta: true
+    state: false
+
+testing:
+  strategy:
+    - "Unit tests for pure mapping/transforms (host-side build if possible)"
+    - "On-device integration tests via shell commands + log assertions"
+    - "Reboot/power-loss recovery tests for persistence"
+  test_cases:
+    milestone_M1:
+      - "Create 3 fibres; verify round-robin via counters"
+      - "sleep(ms) wakes within tolerance"
+      - "event bus publishes and dispatches under load"
+    milestone_M3:
+      - "Registry add/remove node; persist and restore"
+      - "Lifecycle transitions correct under repeated announce"
+    milestone_M4_M5:
+      - "Permit join -> node appears -> interview steps executed"
+      - "Interrupt join mid-interview -> reboot -> resume"
+    milestone_M6_M7:
+      - "MQTT command toggles light"
+      - "Zigbee report updates published state"
+  instrumentation:
+    - "Expose counters in `stats` shell command"
+    - "Expose dropped event counts and heap/stack usage"
+
+risk_register:
+  - id: "R1"
+    risk: "Zigbee stack callback context constraints"
+    impact: "Deadlocks/latency if heavy work happens in callbacks"
+    mitigation:
+      - "Always enqueue events; do work in fibres"
+      - "Add watchdog counters for callback time"
+  - id: "R2"
+    risk: "Persistence schema evolution"
+    impact: "Bricked state after upgrades"
+    mitigation:
+      - "Schema versioning + migration hooks"
+      - "Fallback to safe reset of only derived data"
+  - id: "R3"
+    risk: "Device quirks / non-standard attributes"
+    impact: "Broken capability mapping for some brands"
+    mitigation:
+      - "Quirk table layer that patches mapping by manufacturer/model"
+      - "Verbose inspection tooling in shell"
+  - id: "R4"
+    risk: "Cooperative scheduling starvation"
+    impact: "One fibre blocks system"
+    mitigation:
+      - "Strict rule: no long loops without yield/sleep"
+      - "Add soft watchdog that flags non-yielding fibres"
+
+task_index:
+  # Optional finer-grained IDs for check-off across chats
+  conventions:
+    prefix: "T"
+    format: "T###"
+    rule: "Each task should be atomic, testable, and land in one PR/commit set if possible"
+  tasks:
+    - id: "T001"
+      milestone: "M0"
+      title: "Create repo structure and baseline docs"
+    - id: "T010"
+      milestone: "M1"
+      title: "Implement FreeRTOS host task to run OS"
+    - id: "T011"
+      milestone: "M1"
+      title: "Implement fibre scheduler create/switch/yield"
+    - id: "T012"
+      milestone: "M1"
+      title: "Implement tick timer + sleep(ms)"
+    - id: "T013"
+      milestone: "M1"
+      title: "Implement event bus ring buffer + dispatcher fibre"
+    - id: "T014"
+      milestone: "M1"
+      title: "Implement UART console + shell"
+    - id: "T020"
+      milestone: "M2"
+      title: "Implement NVS persistence wrapper + schema versioning"
+    - id: "T030"
+      milestone: "M3"
+      title: "Implement device registry structures + lifecycle + shell inspection"
+    - id: "T040"
+      milestone: "M4"
+      title: "Integrate Zigbee coordinator + permit join + callback to bus"
+    - id: "T050"
+      milestone: "M5"
+      title: "Implement interview/provisioner with resumable progress"
+    - id: "T060"
+      milestone: "M6"
+      title: "Implement capability mapping v0 for lights"
+    - id: "T070"
+      milestone: "M7"
+      title: "Implement Wi-Fi + MQTT adapter v0"
+    - id: "T080"
+      milestone: "M8"
+      title: "Implement HA discovery generator"
+    - id: "T100"
+      milestone: "M10"
+      title: "Matter bridge spike for one light"
+
+next_step_defaults:
+  recommended_first_task: "T001"
+  rationale: "Lock repo shape + docs first so future work stays clean and check-offable."

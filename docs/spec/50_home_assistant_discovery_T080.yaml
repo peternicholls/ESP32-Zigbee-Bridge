@@ -1,0 +1,103 @@
+id: T080
+milestone: M8
+name: ha_discovery_mqtt
+version: 1
+
+inputs:
+  caps_taxonomy: caps-v0
+  mqtt_topics:
+    status: bridge/status
+    state: "bridge/<node_id>/<cap_id>/state"
+    set:   "bridge/<node_id>/<cap_id>/set"
+  payloads:
+    state_json: { v: "<typed>", ts: "<u32_ms_optional>" }
+    cmd_json:   { v: "<typed>", corr_id: "<optional>" }
+
+identity:
+  bridge_id: { source: "persist_once_or_build_const", max_len: 32 }
+  node_id:   { source: "eui64_derived_only", forbid: ["nwk_short_addr"] }
+  unique_id:
+    format: "<bridge_id>_<node_id>_<cap_sanitized>"
+    sanitize: { ".": "_" }
+
+ha:
+  discovery_topic: "homeassistant/<component>/<unique_id>/config"
+  retain: true
+  availability:
+    topic: bridge/status
+    payload_available: online
+    payload_not_available: offline
+
+events:
+  in:  [MQTT_CONNECTED, MQTT_DISCONNECTED, REG_NODE_READY, REG_CAPS_CHANGED, BOOT_RESTORE_COMPLETE, REG_NODE_REMOVED]
+  internal: [HA_DISC_PUBLISH, HA_DISC_UNPUBLISH]
+  out: [MQTT_PUBLISH]
+
+rules:
+  execution:
+    - "publish only from domain/fibre context"
+    - "coalesce pending publishes by node_id when mqtt down"
+  idempotency: "same_inputs => identical_payload_bytes"
+  removal:
+    enabled: true
+    method: "publish_empty_payload_to_config_topic(retain=true)"
+
+merge:
+  - if_caps: ["light.on", "light.level"]
+    entity:
+      component: light
+      unique_id: "<bridge_id>_<node_id>_light"
+      template_ref: merged_light
+
+device_object:
+  identifiers: ["<bridge_id>_<node_id>"]
+  name: "<node_friendly_or_model>"
+  manufacturer: "<opt>"
+  model: "<opt>"
+  sw_version: "<opt>"
+
+templates:
+  merged_light:
+    component: light
+    fields:
+      name: "<node_friendly_or_model>"
+      unique_id: "<bridge_id>_<node_id>_light"
+      availability_topic: bridge/status
+      payload_available: online
+      payload_not_available: offline
+      state_topic:   "bridge/<node_id>/light.on/state"
+      command_topic: "bridge/<node_id>/light.on/set"
+      value_template: "{{ value_json.v }}"
+      command_template: "{{ {'v': (value == 'ON')} | tojson }}"
+      brightness_state_topic:   "bridge/<node_id>/light.level/state"
+      brightness_command_topic: "bridge/<node_id>/light.level/set"
+      brightness_value_template: "{{ (value_json.v | float * 2.55) | int }}"
+      brightness_command_template: "{{ {'v': ((value | int) / 2.55) | int} | tojson }}"
+      device: "<device_object>"
+
+service:
+  module: services/ha_disc
+  handlers:
+    - on: REG_NODE_READY
+      emit: HA_DISC_PUBLISH
+      args: { node_id: "<node_id>" }
+    - on: REG_CAPS_CHANGED
+      emit: HA_DISC_PUBLISH
+      args: { node_id: "<node_id>" }
+    - on: BOOT_RESTORE_COMPLETE
+      emit: HA_DISC_PUBLISH
+      args: { node_id: "*" }
+    - on: MQTT_CONNECTED
+      action: flush_pending
+    - on: REG_NODE_REMOVED
+      emit: HA_DISC_UNPUBLISH
+      args: { node_id: "<node_id>" }
+
+tests:
+  - id: ha_merge_light
+    given: { caps: ["light.on","light.level"], mqtt: up }
+    expect: { publish_count: 1, component: light, has: [brightness_state_topic] }
+  - id: ha_mqtt_down_then_up
+    given: { caps: ["light.on"], mqtt: down }
+    when:  { event: MQTT_CONNECTED }
+    expect: { published_after_connect: true }

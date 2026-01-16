@@ -1,0 +1,78 @@
+id: instrumentation_v1
+name: sched_bus_obs
+goal: "Prove away starvation and backpressure risks before hardware integration."
+
+metrics:
+  scheduler:
+    per_fibre:
+      - run_count
+      - last_run_ts_ms
+      - max_run_us
+      - total_run_us
+    global:
+      - tick_jitter_us
+      - ready_queue_depth
+  event_bus:
+    per_queue:
+      - depth
+      - high_water
+      - drops_total
+      - drops_by_type
+      - coalesce_hits
+    producers:
+      - zb_callback_enqueues
+      - mqtt_ingest_enqueues
+  persistence:
+    - dirty_count
+    - last_flush_ts_ms
+    - flush_count
+    - last_err
+  mqtt:
+    - connected
+    - reconnects
+    - publish_failures
+
+shell_commands:
+  add:
+    - name: sched stats
+      output: [per_fibre, global]
+    - name: events stats
+      output: [per_queue, drops_by_type, high_water]
+    - name: persist stats
+      output: [dirty_count, last_flush_ts_ms, last_err]
+    - name: mqtt stats
+      output: [connected, reconnects, publish_failures]
+
+bus_overflow_policy:
+  classes:
+    critical_never_drop:
+      - CAP_COMMAND
+      - PERSIST_FLUSH
+      - ZB_DEVICE_JOINED
+      - ZB_DEVICE_LEFT
+      - NET_UP
+      - NET_DOWN
+    noncritical_drop_oldest_or_coalesce:
+      - ZB_ATTR_REPORT
+      - LOG
+  coalescing:
+    enable_for: [ZB_ATTR_REPORT]
+    key: "<node_id, endpoint, cluster_id, attr_id>"
+    policy: "keep_latest"
+
+tests:
+  - id: t_starvation_chatty_reports
+    given:
+      report_rate_hz: 50
+      fibres: [shell, interview, mqtt]
+    expect:
+      - "shell remains responsive (max latency < 100ms)"
+      - "no missed keepalive"
+  - id: t_backpressure_coalesce
+    given:
+      queue_size: 64
+      burst_events: 500
+    expect:
+      - "drops occur only in noncritical classes"
+      - "coalesce_hits > 0"
+      - "critical events delivered"

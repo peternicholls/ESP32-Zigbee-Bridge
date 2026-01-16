@@ -1,0 +1,25 @@
+id: integration_questions_v1
+goal: "Force explicit assumptions before hardware integration; convert to tests."
+
+questions:
+  - id: Q1_event_shapes
+    ask: "Exact real ESP Zigbee stack event shapes for announce, join, attr reports, confirms/errors."
+    output:
+      - "adapter event mapping document"
+      - "contract tests: zb_fake shapes must match real adapter shapes"
+  - id: Q2_persistence_reasonable_cases
+    ask: "Define 'reasonable cases' for restore: PAN re-form, key retention, rejoin behaviour."
+    output:
+      - "restore behaviour matrix"
+      - "tests for reboot restore without re-pair in defined cases"
+
+assumptions_to_encode:
+  - id: A1_identity
+    statement: "node_id is EUI64-derived and stable; nwk_short_addr is telemetry only."
+    test: "no_unique_id_or_registry_key_uses_nwk_short_addr"
+  - id: A2_actuator_semantics
+    statement: "actuators are optimistic_with_reconcile; failures produce ack/error events."
+    test: "command_ack_or_error_emitted_with_corr_id"
+  - id: A3_reporting_coalesce
+    statement: "high-rate attr reports are coalesced; only latest value is applied."
+    test: "coalesce_keeps_latest_for_key"
