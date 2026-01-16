@@ -1,1 +1,1 @@
-Refer to prompt yaml files in directory /prompts/ (mirrored in docs/spec/).
+Refer to prompt yaml files in directory /.github/prompts/ (mirrored in docs/spec/).
