@@ -9,7 +9,16 @@ CFLAGS += -DOS_PLATFORM_HOST=1
 CFLAGS += -D_GNU_SOURCE
 
 # Include paths
-INCLUDES = -I os/include -I services/include -I services/ha_disc -I services/local_node -I adapters/include -I drivers/include -I drivers/zigbee -I drivers/gpio_button -I drivers/i2c_sensor -I apps/src
+INCLUDES = -I os/include \
+           -I services/include \
+           -I services/ha_disc \
+           -I services/local_node \
+           -I adapters/include \
+           -I drivers/include \
+           -I drivers/zigbee \
+           -I drivers/gpio_button \
+           -I drivers/i2c_sensor \
+           -I apps/src
 
 # Source files
 OS_SRCS = os/src/os.c \
@@ -40,7 +49,8 @@ MAIN_SRCS = main/src/main.c
 
 TEST_SRCS = tests/unit/test_os.c \
             tests/unit/test_ha_disc.c \
-            tests/unit/test_zb_adapter.c
+            tests/unit/test_zb_adapter.c \
+            tests/unit/test_local_node.c
 
 # Object files
 OS_OBJS = $(OS_SRCS:.c=.o)
@@ -111,4 +121,5 @@ drivers/gpio_button/gpio_button.o: drivers/gpio_button/gpio_button.h os/include/
 drivers/i2c_sensor/i2c_sensor.o: drivers/i2c_sensor/i2c_sensor.h os/include/os_fibre.h
 apps/src/app_blink.o: apps/src/app_blink.h os/include/os.h
 main/src/main.o: os/include/os.h apps/src/app_blink.h
-tests/unit/test_os.o: os/include/os_types.h os/include/os_event.h os/include/os_log.h
+tests/unit/test_os.o: os/include/os_types.h os/include/os_event.h os/include/os_log.h tests/unit/test_ha_disc.h tests/unit/test_zb_adapter.h tests/unit/test_local_node.h tests/unit/test_support.h
+tests/unit/test_local_node.o: services/local_node/local_node.h drivers/gpio_button/gpio_button.h drivers/i2c_sensor/i2c_sensor.h os/include/os_types.h tests/unit/test_support.h

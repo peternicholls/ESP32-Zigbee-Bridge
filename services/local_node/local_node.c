@@ -13,6 +13,8 @@
 
 #define LOCAL_NODE_MODULE "LOCAL_NODE"
 
+/* Fixed identifier for the local hardware node in the simulation.
+ * This should be unique in a real deployment. */
 #define LOCAL_NODE_EUI64 0xABCDEF0000000001ULL
 
 #define ZCL_CLUSTER_ONOFF        0x0006

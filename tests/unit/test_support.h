@@ -1,6 +1,10 @@
 /**
  * @file test_support.h
- * @brief Shared helpers for unit tests
+ * @brief Shared test infrastructure for the unit test suite
+ * 
+ * This header provides common macros and counters used across all unit tests,
+ * including test execution macros (TEST_START, TEST_PASS, TEST_FAIL) and
+ * assertion utilities (ASSERT_EQ, ASSERT_TRUE, ASSERT_FALSE).
  */
 
 #ifndef TEST_SUPPORT_H

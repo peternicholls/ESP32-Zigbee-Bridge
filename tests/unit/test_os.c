@@ -26,6 +26,7 @@
 #include "test_ha_disc.h"
 #include "test_support.h"
 #include "test_zb_adapter.h"
+#include "test_local_node.h"
 
 /* Test helper: safely remove directory and contents */
 static void remove_directory(const char *path) {
@@ -724,6 +725,9 @@ int main(int argc, char *argv[]) {
     
     printf("\nZigbee adapter tests:\n");
     run_zb_adapter_tests();
+    
+    printf("\nLocal node tests:\n");
+    run_local_node_tests();
     
     printf("\nQuirks tests:\n");
     test_quirks_init();

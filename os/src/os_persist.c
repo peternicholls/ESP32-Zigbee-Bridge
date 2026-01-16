@@ -210,6 +210,7 @@ os_err_t os_persist_put(const char *key, const void *data, size_t len) {
     
     LOG_T(PERSIST_MODULE, "Buffered write: %s (%zu bytes)", key, len);
     
+    persist.last_error = OS_OK;
     return OS_OK;
 }
 
@@ -233,6 +234,7 @@ os_err_t os_persist_get(const char *key, void *buf, size_t buf_len, size_t *out_
             if (out_len) {
                 *out_len = persist.write_buffer[i].len;
             }
+            persist.last_error = OS_OK;
             return OS_OK;
         }
     }
@@ -241,6 +243,8 @@ os_err_t os_persist_get(const char *key, void *buf, size_t buf_len, size_t *out_
     os_err_t err = read_file(key, buf, buf_len, out_len);
     if (err != OS_OK) {
         persist.last_error = err;
+    } else {
+        persist.last_error = OS_OK;
     }
     return err;
 }
@@ -264,6 +268,8 @@ os_err_t os_persist_del(const char *key) {
     os_err_t err = delete_file(key);
     if (err != OS_OK) {
         persist.last_error = err;
+    } else {
+        persist.last_error = OS_OK;
     }
     return err;
 }

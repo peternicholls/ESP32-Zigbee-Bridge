@@ -6,6 +6,7 @@
 #include "gpio_button.h"
 #include "os_fibre.h"
 
+/* Period in milliseconds for the simulated button toggle behavior. */
 #define GPIO_BUTTON_TOGGLE_MS 1500
 
 static bool initialized = false;

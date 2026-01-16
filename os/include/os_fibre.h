@@ -43,7 +43,7 @@ typedef struct {
     uint32_t stack_used;
     uint32_t run_count;
     os_tick_t last_run_tick;
-    os_tick_t total_run_ticks;
+    os_tick_t total_run_ticks;  /* Note: This is a run count, not a time duration */
     os_tick_t wake_tick;
 } os_fibre_info_t;
 

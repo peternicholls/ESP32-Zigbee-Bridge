@@ -47,7 +47,7 @@ static const os_shell_cmd_t builtin_commands[] = {
     {"loglevel", "Get/set log level [level]",        cmd_loglevel},
     {"stats",    "Show event bus statistics",        cmd_stats},
     {"sched",    "Show scheduler statistics",        cmd_sched},
-    {"events",   "Show event bus statistics",        cmd_events},
+    {"events",   "Alias for 'stats'",                cmd_events},
     {"persist",  "Show persistence statistics",      cmd_persist},
     {"mqtt",     "Show MQTT statistics",             cmd_mqtt},
     {NULL, NULL, NULL}

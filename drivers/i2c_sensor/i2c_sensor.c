@@ -6,6 +6,11 @@
 #include "i2c_sensor.h"
 #include "os_fibre.h"
 
+/* Simulation parameters for temperature cycling */
+#define TEMP_CYCLE_MS      10000   /* Period of simulated temperature variation in milliseconds */
+#define TEMP_BASE_C        20.0f   /* Base temperature in Celsius */
+#define TEMP_VARIATION_C   5.0f    /* Temperature variation range in Celsius */
+
 static bool initialized = false;
 
 os_err_t i2c_sensor_init(void) {
@@ -19,6 +24,6 @@ float i2c_sensor_read_temperature_c(void) {
     }
 
     os_tick_t ticks = os_now_ticks();
-    float phase = (float)(ticks % OS_MS_TO_TICKS(10000)) / (float)OS_MS_TO_TICKS(10000);
-    return 20.0f + (5.0f * phase);
+    float phase = (float)(ticks % OS_MS_TO_TICKS(TEMP_CYCLE_MS)) / (float)OS_MS_TO_TICKS(TEMP_CYCLE_MS);
+    return TEMP_BASE_C + (TEMP_VARIATION_C * phase);
 }
