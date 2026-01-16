@@ -33,6 +33,8 @@ typedef struct os_fibre {
     
     /* Statistics */
     uint32_t run_count;
+    os_tick_t last_run_tick;
+    os_tick_t total_run_ticks;
     
     /* Linked list */
     struct os_fibre *next;
@@ -167,6 +169,8 @@ void os_fibre_start(void) {
             sched.current = next;
             next->state = OS_FIBRE_STATE_RUNNING;
             next->run_count++;
+            next->last_run_tick = sched.ticks;
+            next->total_run_ticks++;
             
             /* Save scheduler context */
             if (setjmp(sched.scheduler_context) == 0) {
@@ -295,6 +299,8 @@ os_err_t os_fibre_get_info(uint32_t index, os_fibre_info_t *info) {
     info->stack_size = fibre->stack_size;
     info->stack_used = calc_stack_used(fibre);
     info->run_count = fibre->run_count;
+    info->last_run_tick = fibre->last_run_tick;
+    info->total_run_ticks = fibre->total_run_ticks;
     info->wake_tick = fibre->wake_tick;
     
     return OS_OK;
@@ -302,6 +308,32 @@ os_err_t os_fibre_get_info(uint32_t index, os_fibre_info_t *info) {
 
 os_fibre_handle_t os_fibre_current(void) {
     return sched.current;
+}
+
+os_err_t os_fibre_get_stats(os_sched_stats_t *stats) {
+    if (!sched.initialized || stats == NULL) {
+        return OS_ERR_INVALID_ARG;
+    }
+
+    uint32_t ready = 0;
+    uint32_t sleeping = 0;
+    os_fibre_t *fibre = sched.head;
+
+    while (fibre) {
+        if (fibre->state == OS_FIBRE_STATE_READY) {
+            ready++;
+        } else if (fibre->state == OS_FIBRE_STATE_SLEEPING) {
+            sleeping++;
+        }
+        fibre = fibre->next;
+    }
+
+    stats->ticks = sched.ticks;
+    stats->fibre_count = sched.count;
+    stats->ready_count = ready;
+    stats->sleeping_count = sleeping;
+
+    return OS_OK;
 }
 
 void os_tick_advance(void) {

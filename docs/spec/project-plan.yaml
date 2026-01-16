@@ -1,0 +1,414 @@
+project:
+  name: "ESP32-C6 Clean Zigbee Bridge OS"
+  short_name: "c6-zb-bridge"
+  summary: >
+    Build a robust Zigbee bridge on an ESP32-C6 (RISC-V) dev board with Wi-Fi + 802.15.4.
+    Use ESP-IDF/FreeRTOS only as boot + radio substrate. Implement a clean OS-shaped
+    architecture on top: kernel-in-a-task with fibres/green threads, event bus, timers,
+    persistence, logging, shell, and domain services (registry, interview, capability model).
+    Start with MQTT (Home Assistant later). Preserve runway to Matter/HomeKit bridging.
+
+context_capsule:
+  paste_into_new_chat: true
+  text: >
+    Project: ESP32-C6 Zigbee bridge with Wi-Fi + 802.15.4 (Zigbee). Approach: ESP-IDF/FreeRTOS
+    is substrate for boot + vendor Zigbee/Wi-Fi stacks. Our “tiny OS” runs as kernel-in-a-task
+    hosting fibres/green threads, event bus, timers, logging, persistence, shell. Canonical model:
+    Node→Endpoint→Cluster→Attribute. Capability layer provides stable abstractions (light.on, etc.)
+    and maps to Zigbee clusters. Northbound: MQTT first; design keeps runway for Matter/HomeKit
+    bridging later. Non-goals v0: no filesystem, no custom bootloader, no reimplementing Zigbee.
+
+goals:
+  - "Coordinator can form Zigbee network, permit joins, manage devices"
+  - "Clean internal device graph model (Node/Endpoint/Cluster/Attribute)"
+  - "Capability abstraction layer (stable, typed) mapped to Zigbee clusters"
+  - "Event-driven services via an internal bus (no callback soup)"
+  - "Robust persistence to survive reboot without re-pairing"
+  - "Northbound MQTT adapter for state publish + command ingest"
+  - "Developer UX: UART shell, structured logs, ps/uptime/devices"
+
+non_goals_v0:
+  - "Reimplement Zigbee stack or Wi-Fi stack from scratch"
+  - "Custom bootloader / full bare-metal startup"
+  - "Full Zigbee2MQTT feature parity"
+  - "Matter bridge in v0 (design runway only)"
+
+target:
+  hardware:
+    board: "ESP32-C6 dev board"
+    cpu: "RISC-V"
+    radios:
+      - "Wi-Fi"
+      - "802.15.4 (Zigbee)"
+  substrate:
+    framework: "ESP-IDF"
+    rtos: "FreeRTOS"
+    usage:
+      - "boot/bring-up"
+      - "vendor Zigbee stack tasks"
+      - "Wi-Fi drivers"
+      - "NVS persistence store"
+    avoidance:
+      - "Do not use FreeRTOS as the primary app scheduling model (beyond host task + vendor stacks)"
+
+approach:
+  strategy: "Kernel-in-a-task"
+  description: >
+    Run our tiny OS inside a single high-priority FreeRTOS task. Vendor Zigbee/Wi-Fi stacks
+    run in their required substrate tasks. Our OS schedules fibres/green threads for services
+    and app logic, connected via an event bus.
+  scheduling:
+    type: "Cooperative fibres with sleep/yield"
+    tick:
+      source: "ESP-IDF timer (periodic)"
+      granularity_ms: 1
+    notes:
+      - "Preemption via raw trap vectors is deferred; keep OS focus on architecture/services."
+
+architecture:
+  layers:
+    - name: "Substrate"
+      components:
+        - "ROM + bootloader + ESP-IDF startup"
+        - "FreeRTOS runtime"
+        - "Vendor Zigbee stack"
+        - "Wi-Fi stack"
+        - "NVS"
+    - name: "Tiny OS (ours)"
+      components:
+        - "Fibre scheduler"
+        - "Timers/tick"
+        - "Event bus"
+        - "Logging/tracing"
+        - "Persistence service wrapper"
+        - "UART shell"
+    - name: "Domain services (ours)"
+      components:
+        - "Device registry + lifecycle"
+        - "Interview/provisioner"
+        - "Capability mapper"
+        - "Command router"
+    - name: "Northbound adapters (ours)"
+      components:
+        - "MQTT adapter (first)"
+        - "HA discovery (optional)"
+        - "Matter bridge adapter (later)"
+
+data_model:
+  canonical:
+    node:
+      identifiers:
+        - "ieee_eui64"
+        - "nwk_short_addr (ephemeral)"
+      telemetry:
+        - "lqi"
+        - "rssi"
+        - "power_source"
+      metadata:
+        - "manufacturer"
+        - "model"
+        - "sw_build"
+      contains: ["endpoints"]
+    endpoint:
+      fields:
+        - "endpoint_id"
+        - "profile_id"
+        - "device_id"
+      contains: ["clusters"]
+    cluster:
+      fields:
+        - "cluster_id"
+        - "direction: server|client"
+      contains: ["attributes", "commands"]
+    attribute:
+      fields:
+        - "attribute_id"
+        - "type"
+        - "value"
+        - "last_updated_ts"
+  capability_layer:
+    purpose: "Stable product/API abstraction, decoupled from Zigbee specifics"
+    mapping: "Clusters/attributes <-> capabilities"
+
+event_bus:
+  envelope:
+    fields:
+      - "type"
+      - "ts"
+      - "src"
+      - "corr_id"
+      - "payload (typed union)"
+  guidance:
+    - "Zigbee callbacks must enqueue events quickly; never run business logic in callback context."
+    - "Use fixed-size queues initially; define drop/backpressure policy."
+  event_types_minimum:
+    - "BOOT"
+    - "LOG"
+    - "NET_UP"
+    - "NET_DOWN"
+    - "ZB_STACK_UP"
+    - "ZB_DEVICE_JOINED"
+    - "ZB_DEVICE_LEFT"
+    - "ZB_ANNOUNCE"
+    - "ZB_DESC_ENDPOINTS"
+    - "ZB_DESC_CLUSTERS"
+    - "ZB_ATTR_REPORT"
+    - "CAP_STATE_CHANGED"
+    - "CAP_COMMAND"
+    - "PERSIST_FLUSH"
+
+capabilities:
+  taxonomy_v0:
+    actuators:
+      - id: "switch.on"
+        type: "bool"
+      - id: "light.on"
+        type: "bool"
+      - id: "light.level"
+        type: "int"
+        range: [0, 100]
+        unit: "%"
+    sensors:
+      - id: "sensor.temperature"
+        type: "float"
+        unit: "degC"
+      - id: "sensor.humidity"
+        type: "float"
+        unit: "%"
+      - id: "sensor.contact"
+        type: "bool"
+    power:
+      - id: "power.watts"
+        type: "float"
+        unit: "W"
+      - id: "energy.kwh"
+        type: "float"
+        unit: "kWh"
+
+reliability:
+  command_semantics:
+    default_policy:
+      actuators: "optimistic_with_reconcile"
+      sensors: "report_driven_confirmed_only"
+    reconcile:
+      timeout_ms: 5000
+      behaviour_on_timeout: "mark_state_unknown_or_revert_last_confirmed"
+  persistence:
+    backend: "ESP-IDF NVS"
+    schema_version_key: "schema_version"
+    must_persist:
+      - "node identity + metadata"
+      - "endpoints + clusters summary"
+      - "capability list"
+      - "lifecycle state"
+      - "interview progress marker"
+      - "optional friendly name"
+    write_policy:
+      - "buffer updates"
+      - "periodic flush"
+      - "immediate flush on lifecycle transitions (NEW->INTERVIEWING->READY)"
+    schema_keys_example:
+      - "node/<eui64>/meta"
+      - "node/<eui64>/ep/<n>/clusters"
+      - "node/<eui64>/caps"
+      - "bindings/<...> (later)"
+
+northbound:
+  mqtt:
+    enabled_in_v0: true
+    topic_scheme:
+      base: "bridge"
+      state: "bridge/<node_id>/<capability>/state"
+      command: "bridge/<node_id>/<capability>/set"
+      meta: "bridge/<node_id>/meta"
+    payloads:
+      conventions:
+        - "Keep payloads typed and small"
+        - "Include timestamp when useful"
+      examples:
+        - '{"v": true, "ts": 123456}'
+        - '{"v": 42, "unit": "%", "ts": 123456}'
+    home_assistant:
+      discovery:
+        enabled_initially: false
+        plan: "Generate discovery from registry + capability list when device becomes READY."
+  matter_homekit:
+    enabled_in_v0: false
+    notes:
+      - "Design runway: capability model should map cleanly to Matter clusters later."
+      - "Treat as later milestone after join/interview/MQTT stability."
+
+developer_ux:
+  shell:
+    transport: "UART"
+    commands_v0:
+      - "help"
+      - "ps"
+      - "uptime"
+      - "loglevel"
+    commands_planned:
+      - "devices"
+      - "device <id>"
+      - "zb permit-join <sec>"
+      - "mqtt status"
+      - "mqtt pub <topic> <payload>"
+  logging:
+    format: "structured"
+    levels: ["ERROR", "WARN", "INFO", "DEBUG", "TRACE"]
+    safety:
+      - "Safe to call from ISR/callback (enqueue); avoid blocking."
+  sanity_checks:
+    - "Per-fibre stack guards and periodic checking"
+    - "UART output locking or single-writer policy"
+    - "Event queue overflow policy defined and logged"
+    - "No heavy work in Zigbee callbacks"
+
+acceptance_criteria:
+  system:
+    - "Boots and shell is responsive over UART"
+    - "Fibre scheduler runs >=3 tasks reliably (idle/shell/blink)"
+    - "Event bus stable under concurrent producers"
+  zigbee:
+    - "Coordinator forms network and permit join works"
+    - "Device join creates registry entry"
+    - "Interview populates endpoints and basic metadata"
+    - "At least one device class controllable end-to-end"
+  northbound:
+    - "MQTT publishes state changes"
+    - "MQTT command triggers Zigbee actuation"
+    - "Reboot restores registry without requiring re-pair (reasonable cases)"
+
+repo_structure:
+  top_level:
+    - "docs/"
+    - "main/"
+    - "os/"
+    - "services/"
+    - "adapters/"
+    - "drivers/"
+    - "apps/"
+  notes:
+    - "Keep module boundaries strict; prefer data-driven mapping tables over scattered conditionals."
+
+status_snapshot_template:
+  fields:
+    current_state:
+      - "commit"
+      - "branch"
+      - "last_completed_milestone"
+      - "next_in_progress_milestone"
+      - "known_blockers"
+    verified_working_checklist:
+      - "boots_reliably"
+      - "shell_responsive"
+      - "fibres_switching"
+      - "event_bus_stable"
+      - "persistence_stable"
+      - "zigbee_coordinator_up"
+      - "permit_join_works"
+      - "interview_works"
+      - "light_control_end_to_end"
+      - "mqtt_publish_command_works"
+    decisions_locked_in:
+      - "substrate_approach"
+      - "capability_taxonomy"
+      - "command_semantics"
+      - "topic_scheme"
+      - "persistence_schema_version"
+    open_questions: []
+
+workflow_for_new_context_windows:
+  paste_order:
+    - "context_capsule"
+    - "latest_status_snapshot"
+    - "next_task_request"
+  next_task_request_example: >
+    Implement Milestone 3: Device registry + lifecycle. Prioritise correctness over features.
+    Add shell commands `devices` and `device <id>`.
+
+milestones:
+  - id: "M0"
+    name: "Repo + conventions"
+    tasks:
+      - "[ ] Create project structure (os/, services/, adapters/, apps/, drivers/, docs/)"
+      - "[ ] Add Context Capsule + architecture overview in docs/README.md"
+      - "[ ] Add STATUS.md snapshot template"
+  - id: "M1"
+    name: "Tiny OS core (no radios)"
+    goal: "Kernel-in-a-task with fibres, bus, timers, shell, demo task"
+    tasks:
+      - "[ ] Create FreeRTOS host task os_host_task() that starts OS and never returns"
+      - "[ ] Fibre scheduler v0: create/switch/yield/sleep"
+      - "[ ] Tick source: ESP-IDF timer increments os_ticks"
+      - "[ ] Event bus v0: fixed-size ring buffer queue + subscribe/dispatch"
+      - "[ ] Logging: structured logs with levels; safe from ISR/callback (enqueue)"
+      - "[ ] UART console driver: putc/getc + line input"
+      - "[ ] Shell task: help/ps/uptime/loglevel"
+      - "[ ] Demo task: blink uses sleep/yield"
+    done_when:
+      - "Shell remains responsive while blink runs"
+      - "ps shows tasks and states"
+      - "tick increments accurately"
+  - id: "M2"
+    name: "Persistence service (NVS wrapper)"
+    tasks:
+      - "[ ] Implement persist_put/get/del with blobs"
+      - "[ ] Store schema_version"
+      - "[ ] Buffered writes + periodic flush"
+      - "[ ] Reboot test: write state, reboot, restore"
+  - id: "M3"
+    name: "Device registry + lifecycle"
+    tasks:
+      - "[ ] Registry structures: Node/Endpoint/Cluster/Attribute"
+      - "[ ] Lifecycle state machine: NEW/INTERVIEWING/READY/STALE/LEFT"
+      - "[ ] Registry events: DEVICE_JOINED/DEVICE_READY/DEVICE_LEFT"
+      - "[ ] Persist minimal registry snapshot"
+      - "[ ] Shell: devices, device <id>"
+  - id: "M4"
+    name: "Zigbee adapter (stack integration)"
+    tasks:
+      - "[ ] Zigbee coordinator startup via ESP-IDF"
+      - "[ ] Shell command: zb permit-join <sec>"
+      - "[ ] Zigbee callbacks -> bus events (fast path)"
+      - "[ ] Join/announce -> create node in registry"
+      - "[ ] Capture basic metadata where available"
+  - id: "M5"
+    name: "Interview/provisioner service"
+    tasks:
+      - "[ ] Query endpoints (simple descriptor)"
+      - "[ ] Query clusters per endpoint"
+      - "[ ] Read Basic cluster attrs (manufacturer/model/SW build)"
+      - "[ ] Persist and resume interview progress"
+      - "[ ] Transition to READY triggers CAPS_COMPUTED"
+  - id: "M6"
+    name: "Capability mapping v0 (Lights)"
+    tasks:
+      - "[ ] Map OnOff cluster 0x0006 -> light.on"
+      - "[ ] Map LevelControl 0x0008 -> light.level"
+      - "[ ] Attr reports update capability state and emit CAP_STATE_CHANGED"
+      - "[ ] Command router: CAP_COMMAND -> Zigbee commands (On/Off/MoveToLevel)"
+  - id: "M7"
+    name: "MQTT adapter v0"
+    tasks:
+      - "[ ] Wi-Fi connect management task"
+      - "[ ] MQTT connect/reconnect"
+      - "[ ] Publish CAP_STATE_CHANGED to topics"
+      - "[ ] Subscribe command topics -> emit CAP_COMMAND"
+      - "[ ] Shell: mqtt status/mqtt pub/mqtt sub (debug)"
+  - id: "M8"
+    name: "Home Assistant discovery (optional)"
+    tasks:
+      - "[ ] Generate discovery config from registry + capabilities"
+      - "[ ] Publish on device READY and on reboot restore"
+  - id: "M9"
+    name: "Expand device classes"
+    tasks:
+      - "[ ] Plugs (OnOff + power metering)"
+      - "[ ] Sensors (temp/humidity/contact)"
+      - "[ ] Remotes/buttons (events)"
+  - id: "M10"
+    name: "Matter bridge spike (bonus)"
+    tasks:
+      - "[ ] Minimal Matter endpoint for one light capability"
+      - "[ ] Map capability events <-> Matter cluster state/commands"
+      - "[ ] Verify Apple Home can control bridged light (stretch)"

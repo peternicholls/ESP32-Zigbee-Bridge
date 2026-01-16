@@ -22,8 +22,10 @@
 #include "registry.h"
 #include "interview.h"
 #include "capability.h"
-#include "ha_disc.h"
 #include "quirks.h"
+#include "test_ha_disc.h"
+#include "test_support.h"
+#include "test_zb_adapter.h"
 
 /* Test helper: safely remove directory and contents */
 static void remove_directory(const char *path) {
@@ -46,16 +48,8 @@ static void remove_directory(const char *path) {
     rmdir(path);
 }
 
-/* Test macros */
-#define TEST_START(name)  printf("  Testing %s... ", name)
-#define TEST_PASS()       printf("PASS\n")
-#define TEST_FAIL(msg)    do { printf("FAIL: %s\n", msg); tests_failed++; } while(0)
-#define ASSERT_EQ(a, b)   do { if ((a) != (b)) { TEST_FAIL(#a " != " #b); return; } } while(0)
-#define ASSERT_TRUE(x)    do { if (!(x)) { TEST_FAIL(#x " is false"); return; } } while(0)
-#define ASSERT_FALSE(x)   do { if (x) { TEST_FAIL(#x " is true"); return; } } while(0)
-
-static int tests_passed = 0;
-static int tests_failed = 0;
+int tests_passed = 0;
+int tests_failed = 0;
 
 /* Event bus tests */
 
@@ -597,51 +591,6 @@ static void test_cap_parse_name(void) {
     TEST_PASS();
 }
 
-/* HA Discovery tests */
-
-static void test_ha_disc_init(void) {
-    TEST_START("ha_disc_init");
-    
-    os_err_t err = ha_disc_init();
-    ASSERT_EQ(err, OS_OK);
-    
-    /* Double init should return error */
-    err = ha_disc_init();
-    ASSERT_EQ(err, OS_ERR_ALREADY_EXISTS);
-    
-    tests_passed++;
-    TEST_PASS();
-}
-
-static void test_ha_disc_component_name(void) {
-    TEST_START("ha_disc_component_name");
-    
-    ASSERT_TRUE(strcmp(ha_disc_component_name(HA_COMPONENT_LIGHT), "light") == 0);
-    ASSERT_TRUE(strcmp(ha_disc_component_name(HA_COMPONENT_SWITCH), "switch") == 0);
-    ASSERT_TRUE(strcmp(ha_disc_component_name(HA_COMPONENT_SENSOR), "sensor") == 0);
-    ASSERT_TRUE(strcmp(ha_disc_component_name(HA_COMPONENT_BINARY_SENSOR), "binary_sensor") == 0);
-    
-    tests_passed++;
-    TEST_PASS();
-}
-
-static void test_ha_disc_generate_config(void) {
-    TEST_START("ha_disc_generate_config");
-    
-    os_eui64_t addr = 0xAABBCCDDEEFF0011;
-    ha_disc_config_t config;
-    
-    os_err_t err = ha_disc_generate_config(addr, CAP_LIGHT_ON, &config);
-    ASSERT_EQ(err, OS_OK);
-    ASSERT_EQ(config.component, HA_COMPONENT_LIGHT);
-    ASSERT_TRUE(strlen(config.unique_id) > 0);
-    ASSERT_TRUE(strlen(config.state_topic) > 0);
-    ASSERT_TRUE(strlen(config.command_topic) > 0);
-    
-    tests_passed++;
-    TEST_PASS();
-}
-
 /* Quirks tests */
 
 static void test_quirks_init(void) {
@@ -771,9 +720,10 @@ int main(int argc, char *argv[]) {
     test_cap_parse_name();
     
     printf("\nHA Discovery tests:\n");
-    test_ha_disc_init();
-    test_ha_disc_component_name();
-    test_ha_disc_generate_config();
+    run_ha_disc_tests();
+    
+    printf("\nZigbee adapter tests:\n");
+    run_zb_adapter_tests();
     
     printf("\nQuirks tests:\n");
     test_quirks_init();

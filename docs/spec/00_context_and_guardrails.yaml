@@ -1,0 +1,62 @@
+id: rec_guardrails_v1
+scope:
+  applies_to: ["all_milestones", "all_services", "all_adapters"]
+  goal: "Keep system deterministic, debuggable, and integration-ready without hardware."
+
+core_invariants:
+  - name: single_owner_device_graph
+    rule: "Only the domain context may mutate the registry/device graph."
+    enforcement:
+      - "registry API functions assert domain context"
+      - "all external ingress (Zigbee, MQTT, shell) -> bus events"
+  - name: callbacks_enqueue_only
+    rule: "Zigbee/Wi-Fi callbacks never run business logic; enqueue and return."
+    enforcement:
+      - "callback code size budget: < 200 lines per module"
+      - "no dynamic allocation in callback context"
+  - name: deterministic_event_loop
+    rule: "Domain decisions are made by consuming bus events in a defined order."
+    enforcement:
+      - "bus consumer is single-threaded"
+      - "event handlers must be short; schedule longer work via fibres"
+  - name: idempotent_outputs
+    rule: "Publishing (MQTT/discovery) must be idempotent for same inputs."
+    enforcement:
+      - "stable ordering"
+      - "retain where appropriate"
+  - name: bounded_resources
+    rule: "Queues and buffers are fixed-size in v0; overflow policy explicit."
+    enforcement:
+      - "drop/coalesce policy per event type"
+      - "drop counters + shell visibility"
+
+node_lifecycle_fsm:
+  states: [NEW, ANNOUNCED, INTERVIEWING, READY, OFFLINE, FAILED]
+  transitions:
+    - from: NEW
+      on: ZB_DEVICE_JOINED
+      to: ANNOUNCED
+    - from: ANNOUNCED
+      on: INTERVIEW_START
+      to: INTERVIEWING
+    - from: INTERVIEWING
+      on: INTERVIEW_SUCCESS
+      to: READY
+    - from: INTERVIEWING
+      on: INTERVIEW_FAIL
+      to: FAILED
+    - from: READY
+      on: ZB_DEVICE_LEFT
+      to: OFFLINE
+    - from: OFFLINE
+      on: ZB_ANNOUNCE
+      to: ANNOUNCED
+  notes:
+    - "Use EUI64 as identity; NWK short addr is telemetry only."
+    - "Reports arriving early do not mutate READY-state-only fields; cache then apply."
+
+capability_state_metadata:
+  fields:
+    source: [report, read, derived, northbound]
+    ts: "u32_ms"
+    stale_after_ms: "u32_ms_optional"

@@ -1,0 +1,88 @@
+id: M4_adapter_contract_v1
+milestone: M4
+name: zigbee_adapter_contract
+goal: "Make Zigbee adapter plug in like a cartridge; domain logic unchanged."
+
+design:
+  adapter_role: "Zigbee Coordinator integration boundary"
+  pattern: "Thin C interface + event-out to bus"
+  ownership:
+    - "Adapter owns vendor stack interaction."
+    - "Domain owns registry/capabilities/persistence."
+  threading:
+    - "Vendor callbacks -> enqueue ZB_* events -> return"
+    - "No registry mutation in adapter code"
+
+api:
+  init:
+    - fn: zb_init
+      in: []
+      out: [err_t]
+    - fn: zb_start_coordinator
+      in: []
+      out: [err_t]
+  network:
+    - fn: zb_set_permit_join
+      in: [{ seconds: u16 }]
+      out: [err_t]
+  commands:
+    - fn: zb_send_onoff
+      in: [{ node_id: node_id_t }, { endpoint: u8 }, { on: bool }, { corr_id: u32_optional }]
+      out: [err_t]
+    - fn: zb_send_level
+      in: [{ node_id: node_id_t }, { endpoint: u8 }, { level_0_100: u8 }, { transition_ms: u16 }, { corr_id: u32_optional }]
+      out: [err_t]
+  reads:
+    - fn: zb_read_attrs
+      in:
+        - { node_id: node_id_t }
+        - { endpoint: u8 }
+        - { cluster_id: u16 }
+        - { attr_ids: "u16[] (bounded)" }
+        - { corr_id: u32_optional }
+      out: [err_t]
+  reporting:
+    - fn: zb_configure_reporting
+      in:
+        - { node_id: node_id_t }
+        - { endpoint: u8 }
+        - { cluster_id: u16 }
+        - { attr_id: u16 }
+        - { min_s: u16 }
+        - { max_s: u16 }
+        - { change: "typed (bounded)" }
+      out: [err_t]
+  binding_optional_v0:
+    - fn: zb_bind
+      in:
+        - { node_id: node_id_t }
+        - { endpoint: u8 }
+        - { cluster_id: u16 }
+        - { dst: "coordinator_ieee_or_group" }
+      out: [err_t]
+
+events_out:
+  channel: bus
+  types_minimum:
+    - ZB_STACK_UP
+    - ZB_STACK_DOWN
+    - ZB_DEVICE_JOINED
+    - ZB_DEVICE_LEFT
+    - ZB_ANNOUNCE
+    - ZB_DESC_ENDPOINTS
+    - ZB_DESC_CLUSTERS
+    - ZB_ATTR_REPORT
+    - ZB_CMD_CONFIRM
+    - ZB_CMD_ERROR
+  envelopes:
+    required_fields: [type, ts, src, corr_id, payload]
+    corr_id:
+      rule: "If command/read initiated by domain, corr_id must round-trip when possible."
+
+fakes:
+  - name: zb_fake
+    purpose: "Host-only simulation; used by unit tests and trace replay."
+    guarantees:
+      - "Same event shapes as real adapter (contract tests enforce)."
+  - name: zb_record_replay
+    purpose: "Replay captured event traces into bus without hardware."

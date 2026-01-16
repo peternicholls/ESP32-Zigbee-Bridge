@@ -1,0 +1,40 @@
+id: quirks_v1
+name: device_quirks_table
+goal: "Pre-build escape hatch for non-standard Zigbee device behaviour."
+
+mechanism:
+  key: { manufacturer: "<string>", model: "<string>" }
+  match:
+    - exact
+    - prefix_optional
+  actions:
+    - remap_attribute
+    - clamp_range
+    - invert_boolean
+    - scale_numeric
+    - override_reporting
+    - ignore_spurious_reports
+
+table:
+  - match: { manufacturer: "DUMMY", model: "DUMMY-LIGHT-1" }
+    actions:
+      - type: clamp_range
+        target: { cap: "light.level" }
+        params: { min: 1, max: 100 }
+      - type: invert_boolean
+        target: { cap: "light.on" }
+        params: { enabled: false }  # example disabled by default
+
+integration_points:
+  where_applied:
+    - "post_interview_metadata_ready"
+    - "pre_capability_mapping"
+    - "pre_command_encode"
+  guarantees:
+    - "quirk changes must be isolated per node"
+    - "quirk table must be test-covered"
+
+tests:
+  - id: quirk_applied_on_match
+    given: { manufacturer: "DUMMY", model: "DUMMY-LIGHT-1" }
+    expect: { quirk_actions_applied: true }

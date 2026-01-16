@@ -31,12 +31,15 @@ typedef enum {
     
     /* Zigbee events */
     OS_EVENT_ZB_STACK_UP,
+    OS_EVENT_ZB_STACK_DOWN,
     OS_EVENT_ZB_DEVICE_JOINED,
     OS_EVENT_ZB_DEVICE_LEFT,
     OS_EVENT_ZB_ANNOUNCE,
     OS_EVENT_ZB_DESC_ENDPOINTS,
     OS_EVENT_ZB_DESC_CLUSTERS,
     OS_EVENT_ZB_ATTR_REPORT,
+    OS_EVENT_ZB_CMD_CONFIRM,
+    OS_EVENT_ZB_CMD_ERROR,
     
     /* Capability events */
     OS_EVENT_CAP_STATE_CHANGED,
@@ -152,7 +155,7 @@ os_corr_id_t os_event_new_corr_id(void);
 
 /* Helper macros for common event types */
 #define OS_EVENT_FILTER_ALL     {0, OS_EVENT_TYPE_MAX}
-#define OS_EVENT_FILTER_ZB      {OS_EVENT_ZB_STACK_UP, OS_EVENT_ZB_ATTR_REPORT}
+#define OS_EVENT_FILTER_ZB      {OS_EVENT_ZB_STACK_UP, OS_EVENT_ZB_CMD_ERROR}
 #define OS_EVENT_FILTER_CAP     {OS_EVENT_CAP_STATE_CHANGED, OS_EVENT_CAP_COMMAND}
 
 #ifdef __cplusplus

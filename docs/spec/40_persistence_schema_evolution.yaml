@@ -1,0 +1,58 @@
+id: persist_schema_evolution_v1
+name: persistence_migrations
+goal: "Prevent freeze-by-fear: allow schema evolution safely."
+
+current:
+  schema_version: 1
+  storage:
+    medium: NVS
+    writes: "buffered + debounced"
+    debounce_ms: 2000
+
+principles:
+  - "Essential vs cache tiers; essential must survive, cache optional."
+  - "Never write on every report; use dirty set."
+  - "Unknown fields ignored (forward compatible)."
+
+tiers:
+  essential:
+    fields:
+      - bridge_id
+      - nodes:
+          key: node_id
+          fields:
+            - eui64
+            - friendly_name_optional
+            - fsm_state
+            - endpoints_summary
+            - caps_supported
+            - last_seen_ts
+  cache_optional:
+    fields:
+      - last_cap_values:
+          key: "<node_id, cap_id>"
+          value: { v: "<typed>", ts: "<u32_ms>" }
+
+migration:
+  mechanism:
+    - "Persist root contains schema_version."
+    - "On load: if version != current, run migrate(old->new) chain."
+    - "After migrate success: write new format, keep old until commit acknowledged (two-phase optional)."
+  api:
+    - fn: persist_load
+      out: [schema_version, blob]
+    - fn: persist_migrate
+      in: [from_version, to_version, blob]
+      out: [new_blob]
+    - fn: persist_save
+      in: [schema_version, blob]
+  tests:
+    - id: t_migrate_v1_to_v2_roundtrip
+      steps:
+        - "load v1 fixture"
+        - "migrate to v2"
+        - "save"
+        - "reload"
+      expect:
+        - "no data loss in essential tier"
+        - "unknown fields ignored safely"

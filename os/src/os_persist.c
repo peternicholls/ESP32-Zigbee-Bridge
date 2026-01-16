@@ -48,6 +48,8 @@ static struct {
     uint32_t total_writes;
     uint32_t total_reads;
     uint32_t schema_version;
+    os_tick_t last_flush_tick;
+    os_err_t last_error;
 } persist = {0};
 
 /* Create storage directory */
@@ -152,6 +154,7 @@ os_err_t os_persist_init(void) {
     }
     
     persist.initialized = true;
+    persist.last_error = OS_OK;
     LOG_I(PERSIST_MODULE, "Persistence initialized (schema v%u)", persist.schema_version);
     
     return OS_OK;
@@ -159,10 +162,12 @@ os_err_t os_persist_init(void) {
 
 os_err_t os_persist_put(const char *key, const void *data, size_t len) {
     if (!persist.initialized || !key || !data) {
+        persist.last_error = OS_ERR_INVALID_ARG;
         return OS_ERR_INVALID_ARG;
     }
     
     if (len > OS_PERSIST_VALUE_MAX) {
+        persist.last_error = OS_ERR_INVALID_ARG;
         return OS_ERR_INVALID_ARG;
     }
     
@@ -210,6 +215,7 @@ os_err_t os_persist_put(const char *key, const void *data, size_t len) {
 
 os_err_t os_persist_get(const char *key, void *buf, size_t buf_len, size_t *out_len) {
     if (!persist.initialized || !key || !buf) {
+        persist.last_error = OS_ERR_INVALID_ARG;
         return OS_ERR_INVALID_ARG;
     }
     
@@ -232,11 +238,16 @@ os_err_t os_persist_get(const char *key, void *buf, size_t buf_len, size_t *out_
     }
     
     /* Read from storage */
-    return read_file(key, buf, buf_len, out_len);
+    os_err_t err = read_file(key, buf, buf_len, out_len);
+    if (err != OS_OK) {
+        persist.last_error = err;
+    }
+    return err;
 }
 
 os_err_t os_persist_del(const char *key) {
     if (!persist.initialized || !key) {
+        persist.last_error = OS_ERR_INVALID_ARG;
         return OS_ERR_INVALID_ARG;
     }
     
@@ -250,7 +261,11 @@ os_err_t os_persist_del(const char *key) {
     }
     
     /* Delete from storage */
-    return delete_file(key);
+    os_err_t err = delete_file(key);
+    if (err != OS_OK) {
+        persist.last_error = err;
+    }
+    return err;
 }
 
 bool os_persist_exists(const char *key) {
@@ -276,6 +291,7 @@ bool os_persist_exists(const char *key) {
 
 os_err_t os_persist_flush(void) {
     if (!persist.initialized) {
+        persist.last_error = OS_ERR_NOT_INITIALIZED;
         return OS_ERR_NOT_INITIALIZED;
     }
     
@@ -294,6 +310,7 @@ os_err_t os_persist_flush(void) {
                 persist.total_writes++;
                 flushed++;
             } else {
+                persist.last_error = err;
                 LOG_E(PERSIST_MODULE, "Failed to flush %s", persist.write_buffer[i].key);
             }
         }
@@ -303,6 +320,7 @@ os_err_t os_persist_flush(void) {
     
     if (flushed > 0) {
         LOG_D(PERSIST_MODULE, "Flushed %u writes", flushed);
+        persist.last_flush_tick = os_now_ticks();
         os_event_emit(OS_EVENT_PERSIST_FLUSH, &flushed, sizeof(flushed));
     }
     
@@ -320,6 +338,7 @@ os_err_t os_persist_set_schema_version(uint32_t version) {
 
 os_err_t os_persist_erase_all(void) {
     if (!persist.initialized) {
+        persist.last_error = OS_ERR_NOT_INITIALIZED;
         return OS_ERR_NOT_INITIALIZED;
     }
     
@@ -346,6 +365,7 @@ os_err_t os_persist_erase_all(void) {
     }
     
     persist.schema_version = 0;
+    persist.last_flush_tick = os_now_ticks();
     LOG_I(PERSIST_MODULE, "Storage erased");
     
     return OS_OK;
@@ -355,6 +375,18 @@ void os_persist_get_stats(uint32_t *writes_buffered, uint32_t *total_writes, uin
     if (writes_buffered) *writes_buffered = persist.writes_buffered;
     if (total_writes) *total_writes = persist.total_writes;
     if (total_reads) *total_reads = persist.total_reads;
+}
+
+void os_persist_get_stats_ex(os_persist_stats_t *stats) {
+    if (!stats) {
+        return;
+    }
+
+    stats->writes_buffered = persist.writes_buffered;
+    stats->total_writes = persist.total_writes;
+    stats->total_reads = persist.total_reads;
+    stats->last_flush_tick = persist.last_flush_tick;
+    stats->last_error = persist.last_error;
 }
 
 #else

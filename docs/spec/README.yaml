@@ -1,0 +1,20 @@
+pack:
+  name: esp32c6-zigbee-bridge-recommendations
+  purpose: >
+    YAML-only implementation scripts capturing recommendations from this chat.
+    Designed to minimize context while being exacting, machine-actionable, and
+    consistent with existing project decisions (caps-v0, event bus, kernel-in-a-task).
+  created_utc: 2026-01-15
+  conventions:
+    - "All docs are YAML. No prose outside YAML."
+    - "Deterministic IDs and stable identity (EUI64-derived node_id)."
+    - "Single-owner domain graph; callbacks enqueue events only."
+  contents:
+    - 00_context_and_guardrails.yaml
+    - 10_zigbee_adapter_contract.yaml
+    - 20_trace_harness_record_replay.yaml
+    - 30_instrumentation_starvation_backpressure.yaml
+    - 40_persistence_schema_evolution.yaml
+    - 50_home_assistant_discovery_T080.yaml
+    - 60_device_quirks_table.yaml
+    - 70_integration_questions_and_assumptions.yaml
