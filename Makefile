@@ -1,7 +1,10 @@
-# ESP32-C6 Zigbee Bridge OS - Host Build Makefile
+# ESP32-C6 Zigbee Bridge OS - Build Makefile
 #
-# This Makefile builds the OS for host (Linux/macOS) for testing.
-# For ESP32 target, use ESP-IDF build system.
+# ESP32 targets: build, flash, monitor, flash-monitor
+# Host targets: all, test, run, clean
+
+# ESP32 build targets
+ESP_PORT ?= /dev/cu.usbmodem5AAF1845231
 
 CC = gcc
 CFLAGS = -Wall -Wextra -Werror -std=c11 -g -O0
@@ -67,8 +70,24 @@ TEST_TARGET = build/test_os
 # Libraries
 LIBS = -lpthread
 
-.PHONY: all clean test run
+.PHONY: all clean test run build flash monitor flash-monitor menuconfig
 
+# ESP32 targets
+build:
+	idf.py build
+
+flash:
+	idf.py -p $(ESP_PORT) flash
+
+monitor:
+	idf.py -p $(ESP_PORT) monitor
+
+flash-monitor: flash monitor
+
+menuconfig:
+	idf.py menuconfig
+
+# Host targets
 all: $(MAIN_TARGET)
 
 $(MAIN_TARGET): $(OS_OBJS) $(SVC_OBJS) $(ADAPT_OBJS) $(DRV_OBJS) $(APP_OBJS) $(MAIN_OBJS)
