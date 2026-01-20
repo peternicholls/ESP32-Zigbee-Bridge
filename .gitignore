@@ -56,6 +56,38 @@ dkms.conf
 
 # Build output
 build/
+dependencies/
+dist/
+
+# ESP-IDF specific
+sdkconfig.old
+*.pyc
+__pycache__/
+
+# Managed components (usually auto-generated from idf_component.yml)
+managed_components/
+
+# Dependencies lock (uncomment if you want to track it)
+# dependencies.lock
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+*~
+.DS_Store
+.cache
+
+# Python virtual environments
+venv/
+.venv/
+env/
+.env/
+
+# Logs
+*.log
 
 # CodeQL artifacts
 _codeql*
