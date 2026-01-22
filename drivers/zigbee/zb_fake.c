@@ -55,15 +55,14 @@ zb_err_t zb_send_onoff(zb_node_id_t node_id, uint8_t endpoint, bool on,
   return os_event_publish(&event);
 }
 
-zb_err_t zb_send_level(zb_node_id_t node_id, uint8_t endpoint,
-                       uint8_t level_0_100, uint16_t transition_ms,
-                       os_corr_id_t corr_id) {
-  (void)transition_ms;
+zb_err_t zb_send_level(zb_node_id_t node_id, uint8_t endpoint, uint8_t level,
+                       uint16_t transition_ds, os_corr_id_t corr_id) {
+  (void)transition_ds;
   zb_cmd_confirm_t payload = {
       .node_id = node_id,
       .endpoint = endpoint,
       .cluster_id = 0x0008,
-      .status = level_0_100 > 100 ? 1 : 0,
+      .status = level > 254 ? 1 : 0,
   };
 
   os_event_t event = {0};
@@ -78,7 +77,7 @@ zb_err_t zb_send_level(zb_node_id_t node_id, uint8_t endpoint,
 
 zb_err_t zb_read_attrs(zb_node_id_t node_id, uint8_t endpoint,
                        uint16_t cluster_id, const uint16_t *attr_ids,
-                       size_t attr_count, os_corr_id_t corr_id) {
+                       uint8_t attr_count, os_corr_id_t corr_id) {
   (void)attr_ids;
   (void)attr_count;
   zb_cmd_confirm_t payload = {
@@ -100,25 +99,26 @@ zb_err_t zb_read_attrs(zb_node_id_t node_id, uint8_t endpoint,
 
 zb_err_t zb_configure_reporting(zb_node_id_t node_id, uint8_t endpoint,
                                 uint16_t cluster_id, uint16_t attr_id,
-                                uint16_t min_s, uint16_t max_s,
-                                uint32_t change) {
+                                uint8_t attr_type, uint16_t min_s,
+                                uint16_t max_s, os_corr_id_t corr_id) {
   (void)node_id;
   (void)endpoint;
   (void)cluster_id;
   (void)attr_id;
+  (void)attr_type;
   (void)min_s;
   (void)max_s;
-  (void)change;
+  (void)corr_id;
   LOG_I(ZB_MODULE, "Configure reporting (fake)");
   return OS_OK;
 }
 
 zb_err_t zb_bind(zb_node_id_t node_id, uint8_t endpoint, uint16_t cluster_id,
-                 uint64_t dst) {
+                 os_corr_id_t corr_id) {
   (void)node_id;
   (void)endpoint;
   (void)cluster_id;
-  (void)dst;
+  (void)corr_id;
   LOG_I(ZB_MODULE, "Bind request (fake)");
   return OS_OK;
 }

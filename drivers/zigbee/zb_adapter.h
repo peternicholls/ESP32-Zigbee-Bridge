@@ -19,33 +19,37 @@ typedef os_err_t zb_err_t;
 typedef os_eui64_t zb_node_id_t;
 
 typedef struct {
-    zb_node_id_t node_id;
-    uint8_t endpoint;
-    uint16_t cluster_id;
-    uint8_t status;
+  zb_node_id_t node_id;
+  uint8_t endpoint;
+  uint16_t cluster_id;
+  uint8_t status;
 } zb_cmd_confirm_t;
 
 typedef struct {
-    zb_node_id_t node_id;
-    uint8_t endpoint;
-    uint16_t cluster_id;
-    uint8_t status;
+  zb_node_id_t node_id;
+  uint8_t endpoint;
+  uint16_t cluster_id;
+  uint8_t status;
 } zb_cmd_error_t;
 
 zb_err_t zb_init(void);
 zb_err_t zb_start_coordinator(void);
 zb_err_t zb_set_permit_join(uint16_t seconds);
 
-zb_err_t zb_send_onoff(zb_node_id_t node_id, uint8_t endpoint, bool on, os_corr_id_t corr_id);
-zb_err_t zb_send_level(zb_node_id_t node_id, uint8_t endpoint, uint8_t level_0_100,
-                       uint16_t transition_ms, os_corr_id_t corr_id);
+zb_err_t zb_send_onoff(zb_node_id_t node_id, uint8_t endpoint, bool on,
+                       os_corr_id_t corr_id);
+zb_err_t zb_send_level(zb_node_id_t node_id, uint8_t endpoint, uint8_t level,
+                       uint16_t transition_ds, os_corr_id_t corr_id);
 
-zb_err_t zb_read_attrs(zb_node_id_t node_id, uint8_t endpoint, uint16_t cluster_id,
-                       const uint16_t *attr_ids, size_t attr_count, os_corr_id_t corr_id);
-zb_err_t zb_configure_reporting(zb_node_id_t node_id, uint8_t endpoint, uint16_t cluster_id,
-                                uint16_t attr_id, uint16_t min_s, uint16_t max_s,
-                                uint32_t change);
-zb_err_t zb_bind(zb_node_id_t node_id, uint8_t endpoint, uint16_t cluster_id, uint64_t dst);
+zb_err_t zb_read_attrs(zb_node_id_t node_id, uint8_t endpoint,
+                       uint16_t cluster_id, const uint16_t *attr_ids,
+                       uint8_t attr_count, os_corr_id_t corr_id);
+zb_err_t zb_configure_reporting(zb_node_id_t node_id, uint8_t endpoint,
+                                uint16_t cluster_id, uint16_t attr_id,
+                                uint8_t attr_type, uint16_t min_s,
+                                uint16_t max_s, os_corr_id_t corr_id);
+zb_err_t zb_bind(zb_node_id_t node_id, uint8_t endpoint, uint16_t cluster_id,
+                 os_corr_id_t corr_id);
 
 #ifdef __cplusplus
 }
