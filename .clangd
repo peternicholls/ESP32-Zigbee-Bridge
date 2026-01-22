@@ -1,0 +1,17 @@
+CompileFlags:
+  CompilationDatabase: build
+  Add:
+    - -I/Users/peternicholls/.espressif/v5.5.2/esp-idf/components/newlib/platform_include
+    - -I/Users/peternicholls/code/ESP32-C6-GatewayOS/managed_components/espressif__esp-zigbee-lib/include
+    - -I/Users/peternicholls/.espressif/v5.5.2/esp-idf/components/freertos/FreeRTOS-Kernel/include
+  Remove:
+    - -fstrict-volatile-bitfields
+    - -fno-tree-switch-conversion
+    - -march=*
+    - -mabi=*
+    - --target=*
+
+Diagnostics:
+  Suppress:
+    - pp_file_not_found
+  UnusedIncludes: None

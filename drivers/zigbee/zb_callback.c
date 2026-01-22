@@ -12,7 +12,6 @@
  * - SC-004: Attribute report latency logged in core action callback
  */
 
-#include "esp_check.h"
 #include "esp_zigbee_core.h"
 #include "zb_real_internal.h"
 
