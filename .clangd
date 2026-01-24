@@ -1,0 +1,13 @@
+CompileFlags:
+  CompilationDatabase: build
+  Remove:
+    - -fstrict-volatile-bitfields
+    - -fno-tree-switch-conversion
+    - -march=*
+    - -mabi=*
+    - --target=*
+
+Diagnostics:
+  Suppress:
+    - pp_file_not_found
+  UnusedIncludes: None
