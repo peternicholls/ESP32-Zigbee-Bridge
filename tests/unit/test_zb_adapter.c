@@ -36,6 +36,7 @@ static void test_zba_send_onoff_corr_id(void) {
   ASSERT_EQ(last_event_type, OS_EVENT_ZB_CMD_CONFIRM);
   ASSERT_EQ(last_corr_id, corr_id);
 
+  os_event_unsubscribe(zb_event_handler);
   tests_passed++;
   TEST_PASS();
 }
@@ -54,6 +55,7 @@ static void test_zba_stack_up_event(void) {
   os_event_dispatch(0);
   ASSERT_EQ(last_event_type, OS_EVENT_ZB_STACK_UP);
 
+  os_event_unsubscribe(zb_event_handler);
   tests_passed++;
   TEST_PASS();
 }

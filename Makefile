@@ -3,7 +3,8 @@
 # ESP32 targets: build, flash, monitor, flash-monitor
 # Host targets: all, test, run, clean
 
-# ESP32 build targets
+# ESP32 serial port (override with: make flash ESP_PORT=/dev/tty.usbmodem...)
+# Default: /dev/ttyUSB0 (Linux). macOS users: set ESP_PORT to your device.
 ESP_PORT ?= /dev/ttyUSB0
 
 CC = gcc

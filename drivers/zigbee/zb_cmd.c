@@ -100,8 +100,8 @@ zba_err_t zba_send_level(zba_node_id_t node_id, uint8_t endpoint,
     return OS_ERR_NO_MEM;
   }
 
-  /* Convert 0-100% to 0-254 Zigbee level */
-  uint8_t zb_level = (uint8_t)((level_0_100 * 254) / 100);
+  /* Convert 0-100% to 0-254 Zigbee level (with rounding) */
+  uint8_t zb_level = (uint8_t)((level_0_100 * 254 + 50) / 100);
   /* Convert ms to 100ms units (Zigbee transition time) */
   uint16_t zb_trans = transition_ms / 100;
 

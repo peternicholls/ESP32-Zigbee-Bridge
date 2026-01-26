@@ -1,6 +1,8 @@
 # Drivers component - Hardware drivers (Zigbee, GPIO, I2C sensors)
 
-# Conditional Zigbee adapter: real implementation for ESP32-C6, fake for host
+# Conditional Zigbee adapter: real implementation for ESP32-C6, fake for host.
+# CONFIG_IDF_TARGET_ESP32C6 is only defined when building with ESP-IDF (idf.py).
+# Host builds (make all/test) use the else branch with zb_fake.c.
 if(CONFIG_IDF_TARGET_ESP32C6)
     set(ZIGBEE_SRCS
         "zigbee/zb_real.c"

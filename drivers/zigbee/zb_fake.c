@@ -63,7 +63,7 @@ zba_err_t zba_send_level(zba_node_id_t node_id, uint8_t endpoint,
       .node_id = node_id,
       .endpoint = endpoint,
       .cluster_id = 0x0008,
-      .status = level_0_100 > 254 ? 1 : 0,
+      .status = level_0_100 > 100 ? 1 : 0,  /* Validate percentage 0-100 */
   };
 
   os_event_t event = {0};
