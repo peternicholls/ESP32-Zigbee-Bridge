@@ -52,10 +52,8 @@ zba_err_t zba_configure_reporting(zba_node_id_t node_id, uint8_t endpoint,
 zba_err_t zba_bind(zba_node_id_t node_id, uint8_t endpoint, uint16_t cluster_id,
                    uint64_t dst);
 
-/* Shell commands (ESP32-C6 only - not available on host builds) */
-#ifdef CONFIG_IDF_TARGET_ESP32C6
+/* Shell commands (implemented only on ESP32-C6, guarded in main.c) */
 os_err_t zba_shell_init(void);
-#endif
 
 #ifdef __cplusplus
 }

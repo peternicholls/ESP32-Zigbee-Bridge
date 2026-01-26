@@ -73,8 +73,10 @@ zba_err_t zba_send_onoff(zba_node_id_t node_id, uint8_t endpoint, bool on,
     return OS_ERR_INVALID_ARG;
   }
 
-  /* Capture TSN assigned by the stack for correlation in send status cb */
-  zb_pending_set_tsn(slot, cmd.zcl_basic_cmd.tsn);
+  /* TODO: ESP-IDF doesn't expose TSN from cmd struct. TSN correlation
+   * happens via send_status_cb which receives the actual TSN. For now,
+   * correlation uses corr_id stored in pending slot. */
+  (void)slot; /* Pending slot tracked for future TSN correlation */
 
   return OS_OK;
 }
@@ -132,8 +134,10 @@ zba_err_t zba_send_level(zba_node_id_t node_id, uint8_t endpoint,
     return OS_ERR_INVALID_ARG;
   }
 
-  /* Capture TSN assigned by the stack for correlation in send status cb */
-  zb_pending_set_tsn(slot, cmd.zcl_basic_cmd.tsn);
+  /* TODO: ESP-IDF doesn't expose TSN from cmd struct. TSN correlation
+   * happens via send_status_cb which receives the actual TSN. For now,
+   * correlation uses corr_id stored in pending slot. */
+  (void)slot; /* Pending slot tracked for future TSN correlation */
 
   return OS_OK;
 }
