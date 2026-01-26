@@ -210,7 +210,7 @@ static zb_pending_cmd_t *pending_cmd_lookup_by_tsn(uint8_t tsn) {
   return NULL;
 }
 
-static void __attribute__((unused)) pending_cmd_free(zb_pending_cmd_t *slot) {
+static void pending_cmd_free(zb_pending_cmd_t *slot) {
   if (slot) {
     slot->in_use = false;
   }
@@ -392,8 +392,12 @@ void esp_zb_app_signal_handler(esp_zb_app_signal_t *signal) {
     LOG_I(ZB_MODULE, "Device joined: " OS_EUI64_FMT ", NWK: 0x%04X",
           OS_EUI64_ARG(eui64), dev->device_short_addr);
     nwk_cache_insert(eui64, dev->device_short_addr);
-    /* Emit device joined event */
-    os_event_emit(OS_EVENT_ZB_DEVICE_JOINED, &eui64, sizeof(eui64));
+    /* Emit device announce event with EUI64 + NWK addr */
+    struct {
+      os_eui64_t eui64;
+      uint16_t nwk_addr;
+    } payload = {eui64, dev->device_short_addr};
+    os_event_emit(OS_EVENT_ZB_ANNOUNCE, &payload, sizeof(payload));
     break;
   }
 

@@ -53,7 +53,7 @@ zba_err_t zba_bind(zba_node_id_t node_id, uint8_t endpoint, uint16_t cluster_id,
                    uint64_t dst);
 
 /* Shell commands */
-os_err_t zb_shell_init(void);
+os_err_t zba_shell_init(void);
 
 #ifdef __cplusplus
 }

@@ -73,7 +73,9 @@ zba_err_t zba_send_onoff(zba_node_id_t node_id, uint8_t endpoint, bool on,
     return OS_ERR_INVALID_ARG;
   }
 
-  /* TSN is assigned by the stack - we'll get it in the send status callback */
+  /* Capture TSN assigned by the stack for correlation in send status cb */
+  zb_pending_set_tsn(slot, cmd.zcl_basic_cmd.tsn);
+
   return OS_OK;
 }
 
@@ -129,6 +131,9 @@ zba_err_t zba_send_level(zba_node_id_t node_id, uint8_t endpoint,
     zb_pending_free(slot);
     return OS_ERR_INVALID_ARG;
   }
+
+  /* Capture TSN assigned by the stack for correlation in send status cb */
+  zb_pending_set_tsn(slot, cmd.zcl_basic_cmd.tsn);
 
   return OS_OK;
 }

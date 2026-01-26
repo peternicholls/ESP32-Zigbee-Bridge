@@ -136,7 +136,9 @@ static int bridge_main(void) {
   reg_shell_init();
 
   /* Initialize Zigbee shell commands */
-  zb_shell_init();
+#ifndef OS_PLATFORM_HOST
+  zba_shell_init();
+#endif
 
   /* Create application fibres */
   err = os_fibre_create(os_shell_task, NULL, "shell", 4096, NULL);

@@ -99,7 +99,7 @@ static int cmd_zb_join(int argc, char *argv[]) {
 }
 
 /* Register zigbee shell commands */
-os_err_t zb_shell_init(void) {
+os_err_t zba_shell_init(void) {
   static const os_shell_cmd_t cmds[] = {
       {"zb_on", "Turn on <ieee_addr> [ep]", cmd_zb_on},
       {"zb_off", "Turn off <ieee_addr> [ep]", cmd_zb_off},

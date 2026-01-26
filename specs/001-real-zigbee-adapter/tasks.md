@@ -56,8 +56,8 @@
 
 ### Callback Registration Stubs
 
-- [x] T019 Add empty `zb_send_status_cb()` function — logs "send status cb called" and returns
-- [x] T020 Add empty `zb_core_action_cb()` function — logs "core action cb called" and returns `ESP_OK`
+- [x] T019 Add empty `zba_send_status_cb()` function — logs "send status cb called" and returns
+- [x] T020 Add empty `zba_core_action_cb()` function — logs "core action cb called" and returns `ESP_OK`
 - [x] T021 🔨 **BUILD CHECKPOINT**: Run `idf.py build` — verify all data structures compile, no warnings
 
 ---
@@ -70,14 +70,14 @@
 
 ### Zigbee Task & Initialization
 
-- [x] T022 [US1] Implement `zb_task()` function — calls `esp_zb_start(false)` then `esp_zb_stack_main_loop()` (never returns)
-- [x] T023 [US1] Implement `zb_init()` body:
+- [x] T022 [US1] Implement `zba_task()` function — calls `esp_zb_start(false)` then `esp_zb_stack_main_loop()` (never returns)
+- [x] T023 [US1] Implement `zba_init()` body:
   - Validate state is UNINITIALIZED
   - Call `esp_zb_platform_config()` with radio/host config
   - Call `esp_zb_init()` with coordinator config (install code disabled, primary channel mask)
-  - Register callbacks: `esp_zb_core_action_handler_register(zb_core_action_cb)`
-  - Register callbacks: `esp_zb_zcl_command_send_status_handler_register(zb_send_status_cb)`
-  - Create task with `xTaskCreate(zb_task, "zigbee", 4096, NULL, 5, NULL)`
+  - Register callbacks: `esp_zb_core_action_handler_register(zba_core_action_cb)`
+  - Register callbacks: `esp_zb_zcl_command_send_status_handler_register(zba_send_status_cb)`
+  - Create task with `xTaskCreate(zba_task, "zigbee", 4096, NULL, 5, NULL)`
   - Transition state to INITIALIZING
   - Return `OS_OK`
 - [x] T024 🔨 **BUILD CHECKPOINT**: Run `idf.py build` — verify init compiles
@@ -92,7 +92,7 @@
 - [x] T028 [US1] Handle `ESP_ZB_BDB_SIGNAL_FORMATION`:
   - If status OK: log PAN ID + channel, transition to READY, emit `OS_EVENT_ZB_STACK_UP`
   - If status not OK: log error, transition to ERROR state
-- [x] T029 [US1] Implement `zb_start_coordinator()` — return `OS_OK` if state is READY or INITIALIZING, else `OS_ERR_INVALID_STATE`
+- [x] T029 [US1] Implement `zba_start_coordinator()` — return `OS_OK` if state is READY or INITIALIZING, else `OS_ERR_INVALID_STATE`
 - [x] T030 🔨 **BUILD CHECKPOINT**: Run `idf.py build` — verify signal handler compiles
 - [x] T031 🚀 **FLASH CHECKPOINT**: Flash to ESP32-C6, boot, verify in serial monitor:
   - Log: "Network formed, PAN ID: 0xXXXX, Channel: XX"
@@ -111,7 +111,7 @@
 
 ### Permit Join
 
-- [x] T032 [US2] Implement `zb_set_permit_join(seconds)`:
+- [x] T032 [US2] Implement `zba_set_permit_join(seconds)`:
   - Validate state is READY
   - Acquire `esp_zb_lock_acquire(portMAX_DELAY)`
   - Call `esp_zb_bdb_open_network(seconds)`
@@ -133,7 +133,7 @@
 
 - [x] T035 🔨 **BUILD CHECKPOINT**: Run `idf.py build` — verify permit join compiles
 - [x] T036 🚀 **FLASH CHECKPOINT**: Flash, test with real Zigbee device:
-  - Call `zb_set_permit_join(180)` (via shell or test code)
+  - Call `zba_set_permit_join(180)` (via shell or test code)
   - Put test device in pairing mode
   - Verify log: "Device joined: EUI64=XX:XX:XX:XX:XX:XX:XX:XX"
   - Verify event: `OS_EVENT_ZB_DEVICE_JOINED` emitted
@@ -146,12 +146,12 @@
 
 **Goal**: Send On/Off commands to joined devices, receive confirmations
 
-**Acceptance**: After device joins, call `zb_send_onoff()`, observe light toggles and `ZB_CMD_CONFIRM` event
+**Acceptance**: After device joins, call `zba_send_onoff()`, observe light toggles and `ZB_CMD_CONFIRM` event
 
 ### Command Sending (in zb_cmd.c)
 
 - [ ] T037 [US3] Add `#include` for zb_real.c internal helpers (declare in header or use extern)
-- [ ] T038 [US3] Implement `zb_send_onoff(node_id, endpoint, on, corr_id)` in `zb_cmd.c`:
+- [ ] T038 [US3] Implement `zba_send_onoff(node_id, endpoint, on, corr_id)` in `zb_cmd.c`:
   - Validate state is READY
   - Lookup NWK from cache by EUI64 — return `OS_ERR_NOT_FOUND` if missing
   - Allocate pending cmd slot — return `OS_ERR_NO_MEM` if full
@@ -164,7 +164,7 @@
 
 ### Send Status Callback (in zb_real.c)
 
-- [ ] T039 [US3] Implement `zb_send_status_cb()` body:
+- [ ] T039 [US3] Implement `zba_send_status_cb()` body:
   - Extract TSN and status from callback params
   - Lookup pending cmd by TSN
   - If not found, log warning and return
@@ -175,13 +175,13 @@
 
 ### Level Command (parallel with T038-T039)
 
-- [ ] T040 [P] [US3] Implement `zb_send_level(node_id, endpoint, level, transition_ms, corr_id)` in `zb_cmd.c`:
+- [ ] T040 [P] [US3] Implement `zba_send_level(node_id, endpoint, level, transition_ms, corr_id)` in `zb_cmd.c`:
   - Same pattern as onoff
   - Use `esp_zb_zcl_level_move_to_level_cmd_req()`
 
 - [ ] T041 🔨 **BUILD CHECKPOINT**: Run `idf.py build` — verify commands compile
 - [ ] T042 🚀 **FLASH CHECKPOINT**: Flash, test with joined light:
-  - Send `zb_send_onoff(device_eui64, 1, true, corr_id)`
+  - Send `zba_send_onoff(device_eui64, 1, true, corr_id)`
   - Verify light turns on
   - Verify `OS_EVENT_ZB_CMD_CONFIRM` received with matching `corr_id`
   - Send off command, verify light turns off
@@ -198,7 +198,7 @@
 
 ### Core Action Callback (in zb_real.c)
 
-- [ ] T043 [US4] Implement `zb_core_action_cb()` — switch on `callback_id`
+- [ ] T043 [US4] Implement `zba_core_action_cb()` — switch on `callback_id`
 - [ ] T044 [US4] Handle `ESP_ZB_CORE_REPORT_ATTR_CB_ID`:
   - Extract `esp_zb_zcl_report_attr_message_t` from data
   - Lookup EUI64 from NWK cache (reverse lookup by short addr)
@@ -212,19 +212,19 @@
 
 ### Attribute Commands (in zb_cmd.c)
 
-- [ ] T046 [US4] Implement `zb_read_attrs(node_id, endpoint, cluster, attr_ids, count, corr_id)`:
+- [ ] T046 [US4] Implement `zba_read_attrs(node_id, endpoint, cluster, attr_ids, count, corr_id)`:
   - Validate state, lookup NWK, allocate pending slot
   - Acquire lock
   - Build `esp_zb_zcl_read_attr_cmd_s`
   - Call `esp_zb_zcl_read_attr_cmd_req()`
   - Release lock
   - Return `OS_OK`
-- [ ] T047 [P] [US4] Implement `zb_configure_reporting(node_id, endpoint, cluster, attr_id, min_s, max_s, change)`:
+- [ ] T047 [P] [US4] Implement `zba_configure_reporting(node_id, endpoint, cluster, attr_id, min_s, max_s, change)`:
   - Acquire lock
   - Build config report request
   - Call `esp_zb_zcl_config_report_cmd_req()`
   - Release lock
-- [ ] T048 [P] [US4] Implement `zb_bind(node_id, endpoint, cluster, dst)`:
+- [ ] T048 [P] [US4] Implement `zba_bind(node_id, endpoint, cluster, dst)`:
   - Acquire lock
   - Call `esp_zb_zdo_bind_req()`
   - Release lock
@@ -233,7 +233,7 @@
 - [ ] T050 🚀 **FLASH CHECKPOINT**: Flash, test attribute reports:
   - Manually toggle paired light switch
   - Verify `OS_EVENT_ZB_ATTR_REPORT` with OnOff cluster value in logs
-  - Call `zb_read_attrs()` and verify response event
+  - Call `zba_read_attrs()` and verify response event
 
 **✅ US4 COMPLETE**: Attribute reports received and emitted
 

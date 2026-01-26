@@ -4,7 +4,7 @@
 # Host targets: all, test, run, clean
 
 # ESP32 build targets
-ESP_PORT ?= /dev/cu.usbmodem5AAF1845231
+ESP_PORT ?= /dev/ttyUSB0
 
 CC = gcc
 CFLAGS = -Wall -Wextra -Werror -std=c11 -g -O0
@@ -71,7 +71,7 @@ TEST_TARGET = build/test_os
 LIBS = -lpthread
 
 # Serial port (override with: make monitor PORT=/dev/ttyUSB0)
-PORT ?= /dev/tty.usbmodem5AAF1845231
+PORT ?= /dev/ttyUSB0
 
 # ESP32 targets: idf.py convenience wrappers
 .PHONY: all clean test run esp flash monitor console help
@@ -113,20 +113,19 @@ help:
 	@echo "  PORT=/dev/xxx  - Override serial port (default: $(PORT))"
 
 # ESP32 targets (convenience wrappers for idf.py)
-# Note: Requires ESP-IDF to be installed at ~/.espressif/v5.5.2/esp-idf
-IDF_EXPORT = . ~/.espressif/v5.5.2/esp-idf/export.sh > /dev/null 2>&1
+# Note: Requires ESP-IDF environment to be sourced before running these targets
 
 esp:
-	@$(IDF_EXPORT) && idf.py build
+	idf.py build
 
 flash:
-	@$(IDF_EXPORT) && idf.py -p $(PORT) flash
+	idf.py -p $(PORT) flash
 
 monitor:
-	@$(IDF_EXPORT) && idf.py -p $(PORT) monitor
+	idf.py -p $(PORT) monitor
 
 console: flash
-	@$(IDF_EXPORT) && idf.py -p $(PORT) monitor
+	idf.py -p $(PORT) monitor
 
 $(MAIN_TARGET): $(OS_OBJS) $(SVC_OBJS) $(ADAPT_OBJS) $(DRV_OBJS) $(APP_OBJS) $(MAIN_OBJS)
 	@mkdir -p build
