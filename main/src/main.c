@@ -136,7 +136,7 @@ static int bridge_main(void) {
   reg_shell_init();
 
   /* Initialize Zigbee shell commands */
-#ifndef OS_PLATFORM_HOST
+#if defined(CONFIG_IDF_TARGET_ESP32C6)
   zba_shell_init();
 #endif
 
