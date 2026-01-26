@@ -1,1 +1,1 @@
-Refer to prompt yaml files in directory /.github/prompts/ (mirrored in docs/spec/).
+Refer to  /.github/agents/ for more details on available agents and their configurations.

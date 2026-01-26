@@ -9,7 +9,7 @@
  * - Host: Uses main() with pthread-based tick simulation
  */
 
-#include "app_blink.h"
+// #include "app_blink.h" // Disabled - blink task not used
 #include "capability.h"
 #include "ha_disc.h"
 #include "interview.h"
@@ -144,10 +144,11 @@ static int bridge_main(void) {
     LOG_E(MAIN_MODULE, "Failed to create shell task: %d", err);
   }
 
-  err = os_fibre_create(app_blink_task, NULL, "blink", 2048, NULL);
-  if (err != OS_OK) {
-    LOG_E(MAIN_MODULE, "Failed to create blink task: %d", err);
-  }
+  // Blink task disabled - testing complete
+  // err = os_fibre_create(app_blink_task, NULL, "blink", 2048, NULL);
+  // if (err != OS_OK) {
+  //   LOG_E(MAIN_MODULE, "Failed to create blink task: %d", err);
+  // }
 
   err = os_fibre_create(dispatcher_task, NULL, "dispatch", 2048, NULL);
   if (err != OS_OK) {
