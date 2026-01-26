@@ -53,7 +53,7 @@ void app_blink_task(void *arg) {
 
 #ifndef OS_PLATFORM_HOST
     /* Set LED to blue */
-    led_strip_set_pixel(led_strip, 0, 0, 0, 16); /* R=0, G=0, B=16 */
+    led_strip_set_pixel(led_strip, 0, 0, 0, 2); /* R=0, G=0, B=2 */
     led_strip_refresh(led_strip);
 #endif
     LOG_D(BLINK_MODULE, "Blink %" PRIu32 " (on)", blink_count);

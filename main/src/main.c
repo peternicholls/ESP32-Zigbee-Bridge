@@ -106,12 +106,12 @@ static int bridge_main(void) {
   }
 
   /* Initialize Zigbee adapter */
-  err = zb_init();
+  err = zba_init();
   if (err != OS_OK) {
     LOG_E(MAIN_MODULE, "Zigbee adapter init failed: %d", err);
   }
 
-  err = zb_start_coordinator();
+  err = zba_start_coordinator();
   if (err != OS_OK) {
     LOG_E(MAIN_MODULE, "Zigbee coordinator start failed: %d", err);
   }
@@ -134,6 +134,11 @@ static int bridge_main(void) {
 
   /* Initialize registry shell commands */
   reg_shell_init();
+
+  /* Initialize Zigbee shell commands */
+#ifndef OS_PLATFORM_HOST
+  zba_shell_init();
+#endif
 
   /* Create application fibres */
   err = os_fibre_create(os_shell_task, NULL, "shell", 4096, NULL);

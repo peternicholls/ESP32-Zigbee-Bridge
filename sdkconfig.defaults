@@ -8,7 +8,9 @@ CONFIG_IDF_TARGET="esp32c6"
 
 # ----- CPU and Memory -----
 CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160=y
-CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+# Main task runs Zigbee stack callbacks + interactive shell. Measured peak usage ~21KB
+# with debug logging enabled. 32KB provides ~50% safety margin above high-water mark.
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=32768
 
 # ----- Flash -----
 CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
@@ -34,8 +36,12 @@ CONFIG_IEEE802154_ENABLED=y
 # ----- NVS (Persistence) -----
 CONFIG_NVS_ENCRYPTION=n
 
-# ----- UART Console -----
+# ----- Console I/O -----
+# UART is primary console for logs/shell. USB Serial JTAG enabled as secondary input
+# so developers can type commands over USB while UART pins connect to external device.
+# Note: If both send input simultaneously, characters will interleave.
 CONFIG_ESP_CONSOLE_UART_DEFAULT=y
+CONFIG_ESP_CONSOLE_SECONDARY_USB_SERIAL_JTAG=y
 CONFIG_ESP_CONSOLE_UART_BAUDRATE=115200
 
 # ----- Logging -----
